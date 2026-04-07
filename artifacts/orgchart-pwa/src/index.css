@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-desy: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+  --font-mono: 'Courier New', monospace;
+
+  --color-desy-blue: #00539f;
+  --color-desy-blue-dark: #003e7a;
+  --color-desy-blue-light: #e8f0f9;
+  --color-desy-dark: #212529;
+  --color-desy-text: #333333;
+  --color-desy-muted: #6c757d;
+  --color-desy-border: #dee2e6;
+  --color-desy-light: #f5f7fa;
+  --color-desy-page: #f0f2f5;
+  --color-desy-white: #ffffff;
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333333;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+    font-weight: 700;
+  }
+
+  code {
+    font-family: 'Courier New', monospace;
+  }
+}
+
+.font-desy {
+  font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+}
