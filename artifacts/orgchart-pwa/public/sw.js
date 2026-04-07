@@ -7,7 +7,9 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {});
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('[SW] Failed to pre-cache static assets:', err);
+      });
     })
   );
   self.skipWaiting();
@@ -21,7 +23,9 @@ self.addEventListener('activate', (event) => {
           .filter((key) => key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       )
-    )
+    ).catch((err) => {
+      console.warn('[SW] Failed to clear old caches:', err);
+    })
   );
   self.clients.claim();
 });
@@ -39,11 +43,16 @@ self.addEventListener('fetch', (event) => {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseClone);
+            }).catch((err) => {
+              console.warn('[SW] Failed to update cache for', event.request.url, err);
             });
           }
           return response;
         })
-        .catch(() => cached);
+        .catch((err) => {
+          if (!cached) console.warn('[SW] Network fetch failed and no cache available:', event.request.url, err);
+          return cached;
+        });
       return cached || fetchPromise;
     })
   );

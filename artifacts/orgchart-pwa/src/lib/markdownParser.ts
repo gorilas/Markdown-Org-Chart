@@ -7,23 +7,50 @@ export interface OrgNode {
   layout: "horizontal" | "vertical";
 }
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[áàäâ]/g, "a")
+    .replace(/[éèëê]/g, "e")
+    .replace(/[íìïî]/g, "i")
+    .replace(/[óòöô]/g, "o")
+    .replace(/[úùüû]/g, "u")
+    .replace(/[ñ]/g, "n")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function hashStr(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
+function makeNodeId(path: string[]): string {
+  const full = path.map(slugify).join("__");
+  if (full.length <= 80) return full;
+  return full.slice(0, 60) + "__" + hashStr(full);
+}
+
+function getStoredLayout(id: string): "horizontal" | "vertical" {
+  try {
+    const stored = localStorage.getItem(`layout-${id}`);
+    if (stored === "horizontal" || stored === "vertical") return stored;
+  } catch {
+  }
+  return "horizontal";
+}
+
 export function parseMarkdownToTree(markdown: string): OrgNode | null {
   const lines = markdown.split("\n");
-  let nodeCounter = 0;
 
-  function makeId() {
-    return `node-${++nodeCounter}`;
-  }
-
-  function getStoredLayout(id: string): "horizontal" | "vertical" {
-    try {
-      const stored = localStorage.getItem(`layout-${id}`);
-      if (stored === "horizontal" || stored === "vertical") return stored;
-    } catch {}
-    return "horizontal";
-  }
-
-  const h2Blocks: { heading: string; subtitle: string; h3Blocks: { heading: string; items: string[] }[] }[] = [];
+  const h2Blocks: {
+    heading: string;
+    subtitle: string;
+    h3Blocks: { heading: string; items: string[] }[];
+  }[] = [];
   let currentH2: (typeof h2Blocks)[0] | null = null;
   let currentH3: { heading: string; items: string[] } | null = null;
 
@@ -48,7 +75,7 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
   if (h2Blocks.length === 0) return null;
 
   const rootBlock = h2Blocks[0];
-  const rootId = makeId();
+  const rootId = makeNodeId([rootBlock.heading]);
   const root: OrgNode = {
     id: rootId,
     label: rootBlock.heading,
@@ -59,14 +86,14 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
   };
 
   for (const h3Block of rootBlock.h3Blocks) {
-    const h3Id = makeId();
+    const h3Id = makeNodeId([rootBlock.heading, h3Block.heading]);
     const h3Node: OrgNode = {
       id: h3Id,
       label: h3Block.heading,
       level: 1,
       layout: getStoredLayout(h3Id),
       children: h3Block.items.map((item) => {
-        const itemId = makeId();
+        const itemId = makeNodeId([rootBlock.heading, h3Block.heading, item]);
         return {
           id: itemId,
           label: item,
@@ -79,18 +106,27 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
     root.children.push(h3Node);
   }
 
-  // Additional h2 blocks become children of root
   for (let i = 1; i < h2Blocks.length; i++) {
     const block = h2Blocks[i];
-    const blockId = makeId();
+    const blockId = makeNodeId([rootBlock.heading, block.heading]);
     const blockNode: OrgNode = {
       id: blockId,
       label: block.heading,
       level: 1,
       layout: getStoredLayout(blockId),
-      children: block.h3Blocks.flatMap((h3) =>
-        h3.items.map((item) => {
-          const itemId = makeId();
+      children: block.h3Blocks.flatMap((h3) => {
+        if (h3.items.length === 0) {
+          const h3Id = makeNodeId([rootBlock.heading, block.heading, h3.heading]);
+          return [{
+            id: h3Id,
+            label: h3.heading,
+            level: 2,
+            layout: getStoredLayout(h3Id),
+            children: [],
+          }];
+        }
+        return h3.items.map((item) => {
+          const itemId = makeNodeId([rootBlock.heading, block.heading, h3.heading, item]);
           return {
             id: itemId,
             label: item,
@@ -98,8 +134,8 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
             layout: getStoredLayout(itemId),
             children: [],
           };
-        })
-      ),
+        });
+      }),
     };
     root.children.push(blockNode);
   }
@@ -115,7 +151,9 @@ export function toggleNodeLayout(
     const newLayout = node.layout === "horizontal" ? "vertical" : "horizontal";
     try {
       localStorage.setItem(`layout-${node.id}`, newLayout);
-    } catch {}
+    } catch {
+      console.warn("localStorage unavailable; layout preference will not persist.");
+    }
     return { ...node, layout: newLayout };
   }
   return {
