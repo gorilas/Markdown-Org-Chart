@@ -1,5 +1,6 @@
 import { OrgNode as OrgNodeType } from "@/lib/markdownParser";
 import { AlignJustify, AlignCenter } from "lucide-react";
+import { useLayoutEffect, useRef } from "react";
 
 interface OrgNodeProps {
   node: OrgNodeType;
@@ -137,10 +138,48 @@ function VerticalGroup({
   children: OrgNodeType[];
   onToggleLayout: (id: string) => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const spineRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const spine = spineRef.current;
+    if (!container || !spine) return;
+
+    const rows = container.querySelectorAll<HTMLElement>(":scope > [data-vertical-row]");
+    if (rows.length === 0) return;
+
+    const parentRect = container.getBoundingClientRect();
+    const firstRect = rows[0].getBoundingClientRect();
+    const lastRect = rows[rows.length - 1].getBoundingClientRect();
+
+    const topOffset = firstRect.top + firstRect.height / 2 - parentRect.top;
+    const bottomOffset = lastRect.top + lastRect.height / 2 - parentRect.top;
+
+    spine.style.top = `${topOffset}px`;
+    spine.style.bottom = `${parentRect.height - bottomOffset}px`;
+  }, [children]);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+    <div ref={containerRef} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+      {/* Vertical spine: runs from center of first child to center of last child */}
+      <div
+        ref={spineRef}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: "50%",
+          bottom: "50%",
+          width: 1,
+          backgroundColor: CONNECTOR,
+        }}
+      />
       {children.map((child) => (
-        <div key={child.id} style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+        <div
+          key={child.id}
+          data-vertical-row
+          style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+        >
           <div style={{ width: 24, height: 1, backgroundColor: CONNECTOR, flexShrink: 0 }} />
           <div style={{ padding: "4px 0" }}>
             <OrgNodeComponent node={child} onToggleLayout={onToggleLayout} />
