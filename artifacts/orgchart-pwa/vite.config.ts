@@ -66,6 +66,14 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    headers:
+      process.env.NODE_ENV !== "production"
+        ? { "Cache-Control": "no-store" }
+        : {},
+    hmr: {
+      clientPort: 443,
+      protocol: "wss",
+    },
   },
   preview: {
     port,
