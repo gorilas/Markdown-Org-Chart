@@ -1,6 +1,5 @@
 import { OrgNode as OrgNodeType } from "@/lib/markdownParser";
 import { AlignJustify, AlignCenter } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
 
 interface OrgNodeProps {
   node: OrgNodeType;
@@ -116,7 +115,7 @@ function HorizontalGroup({
 
       {/* Children row */}
       <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
-        {children.map((child, index) => (
+        {children.map((child) => (
           <div
             key={child.id}
             style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 10px" }}
@@ -138,49 +137,60 @@ function VerticalGroup({
   children: OrgNodeType[];
   onToggleLayout: (id: string) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const spineRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const spine = spineRef.current;
-    if (!container || !spine) return;
-
-    const rows = container.querySelectorAll<HTMLElement>(":scope > [data-vertical-row]");
-    if (rows.length === 0) return;
-
-    const parentRect = container.getBoundingClientRect();
-    const firstRect = rows[0].getBoundingClientRect();
-    const lastRect = rows[rows.length - 1].getBoundingClientRect();
-
-    const topOffset = firstRect.top + firstRect.height / 2 - parentRect.top;
-    const bottomOffset = lastRect.top + lastRect.height / 2 - parentRect.top;
-
-    spine.style.top = `${topOffset}px`;
-    spine.style.bottom = `${parentRect.height - bottomOffset}px`;
-  }, [children]);
+  const last = children.length - 1;
 
   return (
-    <div ref={containerRef} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-      {/* Vertical spine: runs from center of first child to center of last child */}
-      <div
-        ref={spineRef}
-        style={{
-          position: "absolute",
-          left: 0,
-          top: "50%",
-          bottom: "50%",
-          width: 1,
-          backgroundColor: CONNECTOR,
-        }}
-      />
-      {children.map((child) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+      {children.map((child, i) => (
         <div
           key={child.id}
-          data-vertical-row
           style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
         >
-          <div style={{ width: 24, height: 1, backgroundColor: CONNECTOR, flexShrink: 0 }} />
+          {/*
+           * Connector column — stretches to the full height of this row.
+           * Builds the spine from two half-segments so no DOM measurement is needed:
+           *   top-half:    connects the row above (or the parent stem for i=0) to this row's centre
+           *   bottom-half: connects this row's centre to the row below (omitted for the last child)
+           *   horizontal:  branches right from the spine to the child card
+           */}
+          <div style={{ width: 24, alignSelf: "stretch", position: "relative", flexShrink: 0 }}>
+            {/* Top half of spine — always present (even for i=0, where it meets the parent stem) */}
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: "50%",
+                width: 1,
+                backgroundColor: CONNECTOR,
+              }}
+            />
+            {/* Bottom half of spine — only when there is a next sibling */}
+            {i < last && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: "50%",
+                  bottom: 0,
+                  width: 1,
+                  backgroundColor: CONNECTOR,
+                }}
+              />
+            )}
+            {/* Horizontal branch from spine to child card */}
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                top: "50%",
+                width: 24,
+                height: 1,
+                backgroundColor: CONNECTOR,
+              }}
+            />
+          </div>
+
           <div style={{ padding: "4px 0" }}>
             <OrgNodeComponent node={child} onToggleLayout={onToggleLayout} />
           </div>
