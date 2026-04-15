@@ -52,10 +52,19 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
           if (child.style.boxShadow) child.style.boxShadow = "none";
         });
 
-        // Hide every button (H/V toggle circles) — ignoreElements alone is
-        // sometimes insufficient; display:none in the clone is the safest approach.
+        // Hide every button (H/V toggle circles).
         el.querySelectorAll<HTMLElement>("button").forEach((btn) => {
           btn.style.display = "none";
+        });
+
+        // Normalise line-height for all paragraph / inline text elements.
+        // html2canvas places the half-leading (the extra space from line-height > 1)
+        // entirely ABOVE the first glyph instead of splitting it above and below.
+        // This makes the top padding look larger than the bottom inside every card.
+        // Setting line-height to 1.1 (tight but readable) eliminates the imbalance
+        // so the py padding renders visually equal on both sides.
+        el.querySelectorAll<HTMLElement>("p").forEach((p) => {
+          p.style.lineHeight = "1.1";
         });
       },
     });
