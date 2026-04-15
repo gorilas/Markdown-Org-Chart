@@ -40,8 +40,11 @@ export function OrgNodeComponent({
   const isHorizontal = node.layout === "horizontal";
   const style = CARD_STYLES[Math.min(node.level, CARD_STYLES.length - 1)];
 
-  // Measure the rendered card width so the spine sits directly below its centre.
-  // Initial value uses half of minWidth to avoid a first-render flash.
+  /*
+   * Measure the card's rendered pixel width so the vertical spine is placed
+   * exactly under the card's centre. Initial value = half of minWidth, used
+   * for the first paint before ResizeObserver fires (avoids a visible flash).
+   */
   const cardRef = useRef<HTMLDivElement>(null);
   const [parentCenterX, setParentCenterX] = useState(isRoot ? 100 : 75);
 
@@ -57,7 +60,7 @@ export function OrgNodeComponent({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-      {/* Node card */}
+      {/* Card */}
       <div style={{ position: "relative" }} className="group">
         <div
           ref={cardRef}
@@ -71,15 +74,11 @@ export function OrgNodeComponent({
           }}
         >
           {isRoot && (
-            <div
-              className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${style.badge}`}
-            >
+            <div className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${style.badge}`}>
               Organismo
             </div>
           )}
-          <p
-            className={`font-semibold leading-snug break-words ${isRoot ? "text-[14px]" : "text-[12px]"}`}
-          >
+          <p className={`font-semibold leading-snug break-words ${isRoot ? "text-[14px]" : "text-[12px]"}`}>
             {node.label}
           </p>
           {node.subtitle && (
@@ -106,15 +105,13 @@ export function OrgNodeComponent({
         )}
       </div>
 
-      {/* Connector + children */}
+      {/* Stem + children */}
       {hasChildren && (
         <>
           <div style={{ width: 1, height: 16, backgroundColor: CONNECTOR }} />
+
           {isHorizontal ? (
-            <HorizontalGroup
-              children={node.children}
-              onToggleLayout={onToggleLayout}
-            />
+            <HorizontalGroup children={node.children} onToggleLayout={onToggleLayout} />
           ) : (
             <VerticalGroup
               children={node.children}
@@ -136,7 +133,6 @@ function HorizontalGroup({
   onToggleLayout: (id: string) => void;
 }) {
   const count = children.length;
-
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch" }}>
       {count > 1 && (
@@ -153,7 +149,6 @@ function HorizontalGroup({
           />
         </div>
       )}
-
       <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
         {children.map((child) => (
           <div
@@ -175,16 +170,23 @@ function HorizontalGroup({
 }
 
 /*
- * VerticalGroup: renders children in a column with T-shaped spine connectors.
+ * VerticalGroup — children stacked vertically with T-junction connectors.
  *
- * parentCenterX is the measured half-width of the parent card (card.offsetWidth/2).
- * The VerticalGroup container uses alignSelf:stretch so it fills the wrapper width,
- * making 50% of this container equal to the parent card centre.
+ * Geometry (x measured from the VerticalGroup's left edge, which = OrgNode wrapper left):
  *
- * Each row has a spacer column of width parentCenterX; the spine sits at its right
- * edge (right:0), directly below the measured card centre.
- * A short bridge (left:parentCenterX → right:50%) fills any gap that arises when
- * wide children push the wrapper beyond the card width.
+ *   [card centred at 50% of OrgNode wrapper]
+ *        │   ← 16 px stem above this component
+ *   ─────┘   ← bridge: absolute in stretch-div, left=parentCenterX, right="50%"
+ *   │            connects spine (≈ card centre) to exact stem bottom (right=50%)
+ *   ├──── child 1
+ *   │
+ *   └──── child 2
+ *
+ * Key insight: the spine is positioned with `position:absolute, left:parentCenterX`
+ * on the ROW div (not inside the spacer column). This ensures it spans the full
+ * row height including top/bottom padding, so consecutive rows' spines touch
+ * and the bridge (rendered above in an alignSelf:stretch wrapper) connects
+ * seamlessly at y=0 without any gap.
  */
 function VerticalGroup({
   children,
@@ -198,8 +200,13 @@ function VerticalGroup({
   const last = children.length - 1;
 
   return (
+    /*
+     * alignSelf:stretch makes this div fill the OrgNode wrapper's cross-size (width),
+     * so right:"50%" on the bridge resolves to exactly half of the wrapper width,
+     * which equals the centred card's horizontal midpoint.
+     */
     <div style={{ alignSelf: "stretch", position: "relative" }}>
-      {/* Bridge: connects spine (left:parentCenterX) to stem bottom (right:50%) */}
+      {/* Bridge: from spine (left:parentCenterX) to stem bottom (right:50% = wrapper centre) */}
       <div
         style={{
           position: "absolute",
@@ -215,6 +222,18 @@ function VerticalGroup({
         {children.map((child, i) => {
           const isLast = i === last;
           return (
+            /*
+             * position:relative here makes this row the containing block for the
+             * spine segments. The spine is therefore positioned relative to the
+             * row's full box (including padding), so:
+             *   top:0   = top edge of the row (including padding-top)
+             *   50%     = vertical midpoint of the row  ≡  alignItems:center position
+             *   bottom:0 = bottom edge of the row (including padding-bottom)
+             *
+             * Consecutive rows share a border at their top/bottom edges, so each
+             * bottom-half spine exactly touches the next row's top-half spine.
+             * The bridge above also touches the first row's spine at y=0.
+             */
             <div
               key={child.id}
               style={{
@@ -222,53 +241,41 @@ function VerticalGroup({
                 flexDirection: "row",
                 alignItems: "center",
                 padding: "5px 0",
+                position: "relative",
               }}
             >
-              {/* Spacer: spine at right:0, aligned with parent card centre */}
+              {/* Spine: top half — from row top to row vertical centre */}
               <div
                 style={{
-                  width: parentCenterX,
-                  alignSelf: "stretch",
-                  position: "relative",
-                  flexShrink: 0,
+                  position: "absolute",
+                  left: parentCenterX,
+                  top: 0,
+                  height: "50%",
+                  width: 1,
+                  backgroundColor: CONNECTOR,
                 }}
-              >
-                {/* Top half of spine */}
+              />
+              {/* Spine: bottom half — from row centre to row bottom (skip on last child) */}
+              {!isLast && (
                 <div
                   style={{
                     position: "absolute",
-                    right: 0,
-                    top: 0,
-                    bottom: "50%",
+                    left: parentCenterX,
+                    top: "50%",
+                    bottom: 0,
                     width: 1,
                     backgroundColor: CONNECTOR,
                   }}
                 />
-                {/* Bottom half of spine (omitted on last child) */}
-                {!isLast && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      right: 0,
-                      top: "50%",
-                      bottom: 0,
-                      width: 1,
-                      backgroundColor: CONNECTOR,
-                    }}
-                  />
-                )}
-              </div>
+              )}
+
+              {/* Spacer: pushes branch and child card to start at parentCenterX */}
+              <div style={{ width: parentCenterX, flexShrink: 0 }} />
 
               {/* Horizontal branch from spine to child card */}
-              <div
-                style={{
-                  width: 20,
-                  height: 1,
-                  backgroundColor: CONNECTOR,
-                  flexShrink: 0,
-                }}
-              />
+              <div style={{ width: 20, height: 1, backgroundColor: CONNECTOR, flexShrink: 0 }} />
 
+              {/* Child subtree */}
               <OrgNodeComponent node={child} onToggleLayout={onToggleLayout} />
             </div>
           );
