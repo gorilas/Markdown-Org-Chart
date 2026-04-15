@@ -30,6 +30,22 @@ const CARD_STYLES = [
 const TOGGLE_BTN =
   "bg-[#00539f] text-white border-[#003e7a] hover:bg-[#003e7a]";
 
+/*
+ * SPACER_PX is the approximate distance from the LEFT edge of the VerticalGroup
+ * to the spine. We want this to match the parent card's center so the spine
+ * sits directly below the 16 px stem.
+ *
+ * Cards have:
+ *   root  → minWidth 200, maxWidth 280  → center ≈ 110 px
+ *   other → minWidth 150, maxWidth 230  → center ≈  95 px
+ *
+ * Using the min-half keeps the spacer safely inside the card for all widths.
+ * A short "bridge" (left: SPACER → right: 50%) fills any remaining gap so the
+ * spine always connects to the stem, even when children push the container wider.
+ */
+const SPACER_ROOT = 110; // px, ≈ half of root minWidth (200)
+const SPACER_NODE = 75; // px, ≈ half of node minWidth (150)
+
 export function OrgNodeComponent({
   node,
   onToggleLayout,
@@ -104,6 +120,7 @@ export function OrgNodeComponent({
             <VerticalGroup
               children={node.children}
               onToggleLayout={onToggleLayout}
+              spacer={isRoot ? SPACER_ROOT : SPACER_NODE}
             />
           )}
         </>
@@ -158,45 +175,64 @@ function HorizontalGroup({
   );
 }
 
+/**
+ * VerticalGroup — renders children in a column with T-shaped connectors.
+ *
+ * Layout geometry (all measurements from the VerticalGroup container's left edge):
+ *
+ *   [parent card — centered at 50% of container]
+ *          |                ← 16 px stem (centered, rendered in OrgNodeComponent)
+ *   ━━━━━━━┘  ← bridge: absolute, top:0, left:SPACER → right:50%
+ *   |            connects spine (≈ card center) to stem (exactly card center)
+ *   ├──── child 1
+ *   |
+ *   └──── child 2
+ *
+ * The `alignSelf: stretch` makes this container fill the OrgNodeComponent wrapper
+ * width, so `50%` of this container == the parent card's center == the stem.
+ *
+ * SPACER is the approximate half-width of the parent card (fixed constant).
+ * The bridge covers any remaining distance between SPACER and the exact 50%.
+ * With real cards (minWidth 150–200 px) the bridge is ≤ 40 px — visually clean.
+ */
 function VerticalGroup({
   children,
   onToggleLayout,
+  spacer,
 }: {
   children: OrgNodeType[];
   onToggleLayout: (id: string) => void;
+  spacer: number;
 }) {
   const last = children.length - 1;
 
   return (
-    /*
-     * alignSelf: stretch → this div expands to the full width of the parent
-     * flex-column container, which is determined by max(card_width, children_total_width).
-     *
-     * Because the parent card is centered (alignItems: center on the column),
-     * the card's center = 50% of the parent container width.
-     * Since this VerticalGroup also stretches to that same width,
-     * left: 50% of this div == the parent card's center == where the stem ends.
-     *
-     * The bridge line (top: 0, left: 0 → left: 50%) therefore connects:
-     *   right end  → stem bottom (card center)
-     *   left end   → spine (left: 0)
-     * forming a proper L/T junction with no DOM measurement needed.
-     */
     <div style={{ alignSelf: "stretch", position: "relative" }}>
-      {/* Bridge: horizontal line from spine (left:0) to stem (left:50%) */}
+      {/*
+       * Bridge: horizontal segment from spine (left: spacer) to stem (right: 50%).
+       * `right: 50%` anchors the right end at the container's horizontal centre,
+       * which equals the parent card centre because the card is centred in the
+       * same container (alignItems: center in OrgNodeComponent).
+       */}
       <div
         style={{
           position: "absolute",
           top: 0,
-          left: 0,
-          width: "50%",
+          left: spacer,
+          right: "50%",
           height: 1,
           backgroundColor: CONNECTOR,
         }}
       />
 
-      {/* Children column, left-aligned so spine stays at left edge */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+      {/* Children column — left-aligned, spine at right edge of spacer */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+        }}
+      >
         {children.map((child, i) => {
           const isLast = i === last;
           return (
@@ -209,32 +245,37 @@ function VerticalGroup({
                 padding: "5px 0",
               }}
             >
-              {/* Spine column: 1px wide, full row height */}
+              {/*
+               * Spacer column: SPACER px wide, carries the vertical spine
+               * at its right edge (right: 0).  Using right: 0 inside a
+               * position:relative box pins the spine at exactly SPACER px
+               * from the container's left — the same x as the bridge's left end.
+               */}
               <div
                 style={{
-                  width: 1,
+                  width: spacer,
                   alignSelf: "stretch",
                   position: "relative",
                   flexShrink: 0,
                 }}
               >
-                {/* Top half: connects from above (bridge or previous child) */}
+                {/* Top-half spine: from row top to row vertical centre */}
                 <div
                   style={{
                     position: "absolute",
-                    left: 0,
+                    right: 0,
                     top: 0,
                     bottom: "50%",
                     width: 1,
                     backgroundColor: CONNECTOR,
                   }}
                 />
-                {/* Bottom half: connects downward to next child (omit on last) */}
+                {/* Bottom-half spine: from row centre to row bottom (skip on last child) */}
                 {!isLast && (
                   <div
                     style={{
                       position: "absolute",
-                      left: 0,
+                      right: 0,
                       top: "50%",
                       bottom: 0,
                       width: 1,
@@ -244,7 +285,7 @@ function VerticalGroup({
                 )}
               </div>
 
-              {/* Horizontal branch from spine to child card */}
+              {/* Horizontal branch: 20 px rightward from spine to child card */}
               <div
                 style={{
                   width: 20,
@@ -254,7 +295,7 @@ function VerticalGroup({
                 }}
               />
 
-              {/* Child node */}
+              {/* Child subtree */}
               <OrgNodeComponent node={child} onToggleLayout={onToggleLayout} />
             </div>
           );
