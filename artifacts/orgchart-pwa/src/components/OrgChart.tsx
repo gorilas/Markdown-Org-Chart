@@ -19,18 +19,23 @@ export function OrgChart({ root, onToggleLayout }: OrgChartProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   // Track whether the user has manually overridden the auto-fit zoom
   const userZoomedRef = useRef(false);
+  // Guard to prevent ResizeObserver from firing during zoom measurement
+  const isMeasuringRef = useRef(false);
 
   const computeFitScale = useCallback(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return null;
     // offsetWidth/offsetHeight give the layout size at zoom:1
-    // We must temporarily reset zoom to 1 so the measurement is unaffected
+    // Temporarily reset zoom to 1 so the measurement is unaffected,
+    // using isMeasuringRef to suppress ResizeObserver re-entry.
+    isMeasuringRef.current = true;
     const prevZoom = canvas.style.zoom;
     canvas.style.zoom = "1";
     const cw = canvas.offsetWidth;
     const ch = canvas.offsetHeight;
     canvas.style.zoom = prevZoom;
+    isMeasuringRef.current = false;
 
     const containerW = container.clientWidth;
     const containerH = container.clientHeight;
@@ -47,10 +52,10 @@ export function OrgChart({ root, onToggleLayout }: OrgChartProps) {
     }
   }, [computeFitScale]);
 
-  // Auto-fit on first render and whenever the chart content changes
+  // Auto-fit whenever the chart content changes (always — content change
+  // clears userZoomedRef so the new tree is always fitted to the viewport).
   useEffect(() => {
-    if (userZoomedRef.current) return;
-    // Small delay so the DOM has painted the new tree
+    userZoomedRef.current = false;
     const id = requestAnimationFrame(() => {
       const s = computeFitScale();
       if (s !== null) setScale(s);
@@ -58,16 +63,19 @@ export function OrgChart({ root, onToggleLayout }: OrgChartProps) {
     return () => cancelAnimationFrame(id);
   }, [root, computeFitScale]);
 
-  // Re-fit on container resize (window resize, sidebar open/close)
+  // Re-fit on container or canvas resize (window resize, sidebar open/close,
+  // late font/layout changes inside the chart).
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
     const ro = new ResizeObserver(() => {
-      if (userZoomedRef.current) return;
+      if (userZoomedRef.current || isMeasuringRef.current) return;
       const s = computeFitScale();
       if (s !== null) setScale(s);
     });
     ro.observe(container);
+    ro.observe(canvas);
     return () => ro.disconnect();
   }, [computeFitScale]);
 
