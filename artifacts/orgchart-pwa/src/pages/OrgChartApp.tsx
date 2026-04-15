@@ -3,6 +3,7 @@ import { OrgNode, parseMarkdownToTree, toggleNodeLayout } from "@/lib/markdownPa
 import { exportOrgChartToPdf } from "@/lib/pdfExport";
 import { OrgChart } from "@/components/OrgChart";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
+import { LLMPromptHelper } from "@/components/LLMPromptHelper";
 import { FileDown, ChevronLeft, ChevronRight, Info } from "lucide-react";
 
 const DEFAULT_MARKDOWN = `## Departamento de Presidencia, Economía y Justicia
@@ -181,7 +182,12 @@ export function OrgChartApp() {
           `}
         >
           {sidebarOpen && (
-            <MarkdownEditor value={markdown} onChange={handleMarkdownChange} />
+            <>
+              <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                <MarkdownEditor value={markdown} onChange={handleMarkdownChange} />
+              </div>
+              <LLMPromptHelper />
+            </>
           )}
         </div>
 
