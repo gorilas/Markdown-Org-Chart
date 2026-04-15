@@ -8,21 +8,17 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     return;
   }
 
-  // Wait for all fonts (Open Sans from Google Fonts) to be fully loaded
-  // before capturing — otherwise some cards render as coloured boxes with no text.
+  // Wait for all fonts (Open Sans from Google Fonts) to be available.
   await document.fonts.ready;
 
-  const prevZoom    = element.style.zoom;
-  const prevShadow  = element.style.boxShadow;
-  const prevRadius  = element.style.borderRadius;
-  const prevPadding = element.style.padding;
-  const prevBg      = element.style.backgroundColor;
-
-  element.style.zoom            = "1";
-  element.style.boxShadow       = "none";
-  element.style.borderRadius    = "0";
-  element.style.padding         = "24px 32px 32px";
-  element.style.backgroundColor = "#ffffff";
+  // ── Measure natural (zoom:1) dimensions without a visible flash ─────────────
+  // Synchronous DOM read: set zoom → access scrollWidth (forces reflow) → restore.
+  // Because we restore before yielding to the event loop, no paint occurs in between.
+  const prevZoom = element.style.zoom;
+  element.style.zoom = "1";
+  const naturalWidth  = element.scrollWidth;
+  const naturalHeight = element.scrollHeight;
+  element.style.zoom  = prevZoom;
 
   try {
     const canvas = await html2canvas(element, {
@@ -32,11 +28,36 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
       logging: false,
       scrollX: 0,
       scrollY: 0,
-      windowWidth:  element.scrollWidth,
-      windowHeight: element.scrollHeight,
-      // Skip ALL button elements — they render as opaque squares in html2canvas
-      // even when opacity:0 or visibility:hidden is applied.
-      ignoreElements: (node) => node.tagName === "BUTTON",
+      // Tell html2canvas the NATURAL (unzoomed) dimensions so it captures the
+      // full chart and not just the visually-scaled slice.
+      width:        naturalWidth,
+      height:       naturalHeight,
+      windowWidth:  naturalWidth,
+      windowHeight: naturalHeight,
+
+      // ── onclone: modify the CLONED document, never the live DOM ────────────
+      // This avoids any layout-reflow race conditions in the live page.
+      onclone: (_clonedDoc, clonedEl) => {
+        const el = clonedEl as HTMLElement;
+
+        // Reset zoom to 1 so the clone renders at full size.
+        el.style.zoom            = "1";
+        el.style.boxShadow       = "none";
+        el.style.borderRadius    = "0";
+        el.style.padding         = "24px 32px 32px";
+        el.style.backgroundColor = "#ffffff";
+
+        // Remove inline box-shadows from every descendant (card shadows).
+        el.querySelectorAll<HTMLElement>("*").forEach((child) => {
+          if (child.style.boxShadow) child.style.boxShadow = "none";
+        });
+
+        // Hide every button (H/V toggle circles) — ignoreElements alone is
+        // sometimes insufficient; display:none in the clone is the safest approach.
+        el.querySelectorAll<HTMLElement>("button").forEach((btn) => {
+          btn.style.display = "none";
+        });
+      },
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.88);
@@ -68,11 +89,5 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
   } catch (err) {
     console.error("Error exportando a PDF:", err);
     alert("Error al generar el PDF. Por favor, inténtelo de nuevo.");
-  } finally {
-    element.style.zoom            = prevZoom;
-    element.style.boxShadow       = prevShadow;
-    element.style.borderRadius    = prevRadius;
-    element.style.padding         = prevPadding;
-    element.style.backgroundColor = prevBg;
   }
 }
