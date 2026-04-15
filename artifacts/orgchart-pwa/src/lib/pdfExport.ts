@@ -8,6 +8,11 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     return;
   }
 
+  // Temporarily reset CSS zoom to 1 so html2canvas captures the full chart
+  // at native resolution regardless of the current view zoom level.
+  const prevZoom = (element as HTMLElement).style.zoom;
+  (element as HTMLElement).style.zoom = "1";
+
   try {
     const canvas = await html2canvas(element, {
       scale: 2,
@@ -51,5 +56,8 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
   } catch (err) {
     console.error("Error exportando a PDF:", err);
     alert("Error al generar el PDF. Por favor, inténtelo de nuevo.");
+  } finally {
+    // Always restore the zoom, even if capture failed
+    (element as HTMLElement).style.zoom = prevZoom;
   }
 }
