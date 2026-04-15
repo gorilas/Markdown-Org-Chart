@@ -125,6 +125,16 @@ export function OrgNodeComponent({
   );
 }
 
+/*
+ * HorizontalGroup — children laid out side by side.
+ *
+ * The horizontal connector spans from the centre of the first child column
+ * to the centre of the last child column. Because columns can have very
+ * different widths (each one contains a full subtree), using a percentage
+ * formula (50% / count) gives wrong results. Instead we measure the actual
+ * rendered widths of the first and last columns via a ResizeObserver on the
+ * row element and derive pixel-accurate left/right values.
+ */
 function HorizontalGroup({
   children,
   onToggleLayout,
@@ -132,24 +142,52 @@ function HorizontalGroup({
   children: OrgNodeType[];
   onToggleLayout: (id: string) => void;
 }) {
-  const count = children.length;
+  const rowRef = useRef<HTMLDivElement>(null);
+  // lineLeft  = pixels from left edge  to centre of first column
+  // lineRight = pixels from right edge to centre of last column
+  const [lineLeft, setLineLeft] = useState<number | null>(null);
+  const [lineRight, setLineRight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row || children.length < 2) return;
+
+    const measure = () => {
+      const cols = row.querySelectorAll<HTMLElement>(":scope > div");
+      if (cols.length < 2) return;
+      const first = cols[0];
+      const last = cols[cols.length - 1];
+      setLineLeft(first.offsetWidth / 2);
+      setLineRight(last.offsetWidth / 2);
+    };
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(row);
+    measure();
+    return () => ro.disconnect();
+  }, [children.length]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch" }}>
-      {count > 1 && (
-        <div style={{ display: "flex", height: 0, position: "relative" }}>
+      {/* Horizontal connector — rendered in a zero-height strip above the row */}
+      {children.length > 1 && lineLeft !== null && lineRight !== null && (
+        <div style={{ position: "relative", height: 0 }}>
           <div
             style={{
               position: "absolute",
               top: 0,
-              left: `calc(50% / ${count})`,
-              right: `calc(50% / ${count})`,
+              left: lineLeft,
+              right: lineRight,
               height: 1,
               backgroundColor: CONNECTOR,
             }}
           />
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
+      <div
+        ref={rowRef}
+        style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}
+      >
         {children.map((child) => (
           <div
             key={child.id}
