@@ -8,30 +8,20 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     return;
   }
 
-  const prevZoom = element.style.zoom;
-  const prevShadow = element.style.boxShadow;
-  const prevRadius = element.style.borderRadius;
+  // Wait for all fonts (Open Sans from Google Fonts) to be fully loaded
+  // before capturing — otherwise some cards render as coloured boxes with no text.
+  await document.fonts.ready;
+
+  const prevZoom    = element.style.zoom;
+  const prevShadow  = element.style.boxShadow;
+  const prevRadius  = element.style.borderRadius;
   const prevPadding = element.style.padding;
-  const prevBg = element.style.backgroundColor;
+  const prevBg      = element.style.backgroundColor;
 
-  const toggleBtns = element.querySelectorAll<HTMLElement>("button");
-  const btnPrevVis: string[] = [];
-  toggleBtns.forEach((btn) => {
-    btnPrevVis.push(btn.style.visibility);
-    btn.style.visibility = "hidden";
-  });
-
-  const legendSquares = element.querySelectorAll<HTMLElement>(".inline-block.w-3.h-3");
-  const legendPrevDisplay: string[] = [];
-  legendSquares.forEach((square) => {
-    legendPrevDisplay.push(square.style.display);
-    square.style.display = "none";
-  });
-
-  element.style.zoom = "1";
-  element.style.boxShadow = "none";
-  element.style.borderRadius = "0";
-  element.style.padding = "24px 32px 32px";
+  element.style.zoom            = "1";
+  element.style.boxShadow       = "none";
+  element.style.borderRadius    = "0";
+  element.style.padding         = "24px 32px 32px";
   element.style.backgroundColor = "#ffffff";
 
   try {
@@ -42,9 +32,11 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
       logging: false,
       scrollX: 0,
       scrollY: 0,
-      windowWidth: element.scrollWidth,
+      windowWidth:  element.scrollWidth,
       windowHeight: element.scrollHeight,
-      ignoreElements: (node) => node instanceof HTMLElement && node.classList.contains("group-hover:opacity-100"),
+      // Skip ALL button elements — they render as opaque squares in html2canvas
+      // even when opacity:0 or visibility:hidden is applied.
+      ignoreElements: (node) => node.tagName === "BUTTON",
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.88);
@@ -55,18 +47,18 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
       format: "a4",
     });
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageWidth  = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 8;
 
-    const availWidth = pageWidth - margin * 2;
+    const availWidth  = pageWidth  - margin * 2;
     const availHeight = pageHeight - margin * 2;
 
-    const ratio = Math.min(availWidth / canvas.width, availHeight / canvas.height);
-    const scaledWidth = canvas.width * ratio;
+    const ratio        = Math.min(availWidth / canvas.width, availHeight / canvas.height);
+    const scaledWidth  = canvas.width  * ratio;
     const scaledHeight = canvas.height * ratio;
 
-    const x = margin + (availWidth - scaledWidth) / 2;
+    const x = margin + (availWidth  - scaledWidth)  / 2;
     const y = margin + (availHeight - scaledHeight) / 2;
 
     pdf.addImage(imgData, "JPEG", x, y, scaledWidth, scaledHeight);
@@ -77,17 +69,10 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     console.error("Error exportando a PDF:", err);
     alert("Error al generar el PDF. Por favor, inténtelo de nuevo.");
   } finally {
-    element.style.zoom = prevZoom;
-    element.style.boxShadow = prevShadow;
-    element.style.borderRadius = prevRadius;
-    element.style.padding = prevPadding;
+    element.style.zoom            = prevZoom;
+    element.style.boxShadow       = prevShadow;
+    element.style.borderRadius    = prevRadius;
+    element.style.padding         = prevPadding;
     element.style.backgroundColor = prevBg;
-
-    toggleBtns.forEach((btn, i) => {
-      btn.style.visibility = btnPrevVis[i];
-    });
-    legendSquares.forEach((square, i) => {
-      square.style.display = legendPrevDisplay[i];
-    });
   }
 }
