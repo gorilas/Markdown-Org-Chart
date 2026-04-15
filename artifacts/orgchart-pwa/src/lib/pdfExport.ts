@@ -8,16 +8,12 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     return;
   }
 
-  // ── 1. Snapshot styles we will temporarily override ────────────────────────
   const prevZoom = element.style.zoom;
   const prevShadow = element.style.boxShadow;
   const prevRadius = element.style.borderRadius;
   const prevPadding = element.style.padding;
   const prevBg = element.style.backgroundColor;
 
-  // ── 2. Hide interactive UI elements that must not appear in the PDF ─────────
-  //    • Toggle buttons (H/V layout switchers) — opacity-0 in CSS but still
-  //      rendered by html2canvas as opaque grey circles.
   const toggleBtns = element.querySelectorAll<HTMLElement>("button");
   const btnPrevVis: string[] = [];
   toggleBtns.forEach((btn) => {
@@ -25,7 +21,13 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     btn.style.visibility = "hidden";
   });
 
-  // ── 3. Clean up canvas element for a clean screenshot ──────────────────────
+  const legendSquares = element.querySelectorAll<HTMLElement>(".inline-block.w-3.h-3");
+  const legendPrevDisplay: string[] = [];
+  legendSquares.forEach((square) => {
+    legendPrevDisplay.push(square.style.display);
+    square.style.display = "none";
+  });
+
   element.style.zoom = "1";
   element.style.boxShadow = "none";
   element.style.borderRadius = "0";
@@ -42,6 +44,7 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
       scrollY: 0,
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight,
+      ignoreElements: (node) => node instanceof HTMLElement && node.classList.contains("group-hover:opacity-100"),
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.88);
@@ -74,7 +77,6 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     console.error("Error exportando a PDF:", err);
     alert("Error al generar el PDF. Por favor, inténtelo de nuevo.");
   } finally {
-    // ── 4. Always restore every overridden style ──────────────────────────────
     element.style.zoom = prevZoom;
     element.style.boxShadow = prevShadow;
     element.style.borderRadius = prevRadius;
@@ -83,6 +85,9 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
 
     toggleBtns.forEach((btn, i) => {
       btn.style.visibility = btnPrevVis[i];
+    });
+    legendSquares.forEach((square, i) => {
+      square.style.display = legendPrevDisplay[i];
     });
   }
 }
