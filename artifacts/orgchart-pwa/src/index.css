@@ -4,15 +4,26 @@
   --font-desy: 'Open Sans', 'Source Sans 3', 'Source Sans Pro', sans-serif;
   --font-mono: 'Courier New', monospace;
 
-  --color-desy-blue: #00539f;
-  --color-desy-blue-dark: #003e7a;
-  --color-desy-blue-light: #e8f0f9;
-  --color-desy-dark: #212529;
-  --color-desy-text: #333333;
-  --color-desy-muted: #6c757d;
-  --color-desy-border: #dee2e6;
-  --color-desy-light: #f5f7fa;
-  --color-desy-page: #f0f2f5;
+  /* DESY official color tokens (desy-html) */
+
+  /* Primary / Interaction */
+  --color-desy-blue: #00607a;
+  --color-desy-blue-dark: #00475c;
+  --color-desy-blue-light: #d6eaf0;
+
+  /* Header */
+  --color-desy-heading: #3c4c5c;
+  --color-desy-heading-dark: #26374a;
+
+  /* Neutral / Content */
+  --color-desy-dark: #1f2331;
+  --color-desy-text: #5e616b;
+  --color-desy-muted: #92949b;
+  --color-desy-border: #92949b;
+
+  /* Neutral / Background */
+  --color-desy-light: #ededec;
+  --color-desy-page: #f6f6f5;
   --color-desy-white: #ffffff;
 }
 
@@ -24,18 +35,26 @@
   body {
     font-family: 'Open Sans', 'Source Sans 3', 'Source Sans Pro', sans-serif;
     font-size: 16px;
+    font-weight: 400;
     line-height: 1.5;
-    color: #333333;
-    background-color: #f0f2f5;
+    color: #5e616b;
+    background-color: #f6f6f5;
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1, h2, h3 {
     font-family: 'Open Sans', 'Source Sans 3', 'Source Sans Pro', sans-serif;
     font-weight: 700;
+    color: #1f2331;
+  }
+
+  h4, h5, h6 {
+    font-family: 'Open Sans', 'Source Sans 3', 'Source Sans Pro', sans-serif;
+    font-weight: 600;
+    color: #1f2331;
   }
 
   code {

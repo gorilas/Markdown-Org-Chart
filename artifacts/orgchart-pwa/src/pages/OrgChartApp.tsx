@@ -118,14 +118,14 @@ export function OrgChartApp() {
   return (
     <div className="flex flex-col h-screen bg-desy-page font-desy">
       {/* Header */}
-      <header className="bg-desy-blue text-white flex-shrink-0 shadow-md">
+      <header className="bg-desy-heading-dark text-white flex-shrink-0 shadow-md">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-blue-200 uppercase tracking-widest">
+              <span className="text-xs font-semibold text-desy-muted uppercase tracking-widest">
                 Gobierno de Aragón
               </span>
-              <h1 className="text-lg font-bold leading-tight">
+              <h1 className="text-lg font-bold leading-tight text-white">
                 Generador de Organigramas
               </h1>
             </div>
@@ -133,7 +133,7 @@ export function OrgChartApp() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowHelp(!showHelp)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-sm border border-blue-400 text-blue-100 hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-sm border border-desy-border text-desy-blue-light hover:bg-desy-heading transition-colors"
             >
               <Info size={14} />
               <span className="hidden sm:inline">Ayuda</span>
@@ -141,7 +141,7 @@ export function OrgChartApp() {
             <button
               onClick={handleExportPdf}
               disabled={!tree || exporting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-sm bg-white text-desy-blue hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-sm bg-white text-desy-blue hover:bg-desy-blue-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
               <FileDown size={14} />
               {exporting ? "Generando..." : "Descargar PDF"}
@@ -150,10 +150,10 @@ export function OrgChartApp() {
         </div>
 
         {showHelp && (
-          <div className="border-t border-blue-600 bg-blue-800 px-4 py-3 text-sm text-blue-100">
+          <div className="border-t border-desy-heading bg-desy-heading-dark px-4 py-3 text-sm text-desy-blue-light">
             <p className="font-semibold text-white mb-1">Cómo usar esta herramienta:</p>
-            <ul className="space-y-1 text-xs list-disc list-inside text-blue-200">
-              <li>Escribe o pega Markdown con niveles <code className="bg-blue-900 px-1 rounded">##</code> (organismo), <code className="bg-blue-900 px-1 rounded">###</code> (unidades) y <code className="bg-blue-900 px-1 rounded">-</code> (servicios)</li>
+            <ul className="space-y-1 text-xs list-disc list-inside text-desy-muted">
+              <li>Escribe o pega Markdown con niveles <code className="bg-desy-heading px-1 rounded">##</code> (organismo), <code className="bg-desy-heading px-1 rounded">###</code> (unidades) y <code className="bg-desy-heading px-1 rounded">-</code> (servicios)</li>
               <li>Pasa el ratón sobre un nodo y pulsa el botón de layout para cambiar entre horizontal y vertical</li>
               <li>El layout de cada nodo se guarda automáticamente en el navegador</li>
               <li>Usa "Descargar PDF" para exportar el organigrama en A4 horizontal</li>

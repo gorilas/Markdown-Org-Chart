@@ -8,28 +8,28 @@ interface OrgNodeProps {
   isRoot?: boolean;
 }
 
-const CONNECTOR = "#aac0d8";
+const CONNECTOR = "var(--color-desy-border)";
 
 const CARD_STYLES = [
   {
-    card: "bg-[#dbeeff] text-[#003e7a] border-[#00539f]",
-    badge: "text-[#00539f]",
-    sub: "text-[#4a6fa5]",
+    card: "bg-desy-blue-light text-desy-dark border-desy-blue",
+    badge: "text-desy-blue",
+    sub: "text-desy-text",
   },
   {
-    card: "bg-white text-[#212529] border-[#00539f]",
+    card: "bg-white text-desy-dark border-desy-blue",
     badge: "",
-    sub: "text-[#6c757d]",
+    sub: "text-desy-muted",
   },
   {
-    card: "bg-[#f5f7fa] text-[#333] border-[#c8d6e5]",
+    card: "bg-desy-page text-desy-text border-desy-border",
     badge: "",
-    sub: "text-[#6c757d]",
+    sub: "text-desy-muted",
   },
 ];
 
 const TOGGLE_BTN =
-  "bg-[#00539f] text-white border-[#003e7a] hover:bg-[#003e7a]";
+  "bg-desy-blue text-white border-desy-blue-dark hover:bg-desy-blue-dark";
 
 export function OrgNodeComponent({
   node,
@@ -69,12 +69,12 @@ export function OrgNodeComponent({
             minWidth: isRoot ? 200 : 150,
             maxWidth: isRoot ? 280 : 230,
             boxShadow: isRoot
-              ? "0 2px 8px rgba(0,83,159,0.18)"
+              ? "0 2px 8px rgba(0,96,122,0.20)"
               : "0 1px 3px rgba(0,0,0,0.07)",
           }}
         >
           {isRoot && (
-            <div className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${style.badge}`}>
+            <div className={`text-[9px] font-semibold uppercase tracking-widest mb-0.5 ${style.badge}`}>
               Organismo
             </div>
           )}

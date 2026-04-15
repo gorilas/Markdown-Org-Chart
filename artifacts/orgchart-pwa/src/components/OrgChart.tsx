@@ -90,31 +90,31 @@ export function OrgChart({ root, onToggleLayout }: OrgChartProps) {
   };
 
   return (
-    <div className="relative flex flex-col h-full bg-[#f0f2f5]">
+    <div className="relative flex flex-col h-full bg-desy-page">
       {/* Zoom controls */}
-      <div className="absolute top-3 right-3 z-10 flex flex-col gap-1 bg-white rounded-sm border border-[#dee2e6] shadow-sm p-1">
+      <div className="absolute top-3 right-3 z-10 flex flex-col gap-1 bg-white rounded-sm border border-desy-border shadow-sm p-1">
         <button
           onClick={zoomIn}
           title="Acercar"
-          className="w-7 h-7 flex items-center justify-center text-[#333] hover:bg-[#f5f7fa] rounded-sm transition-colors"
+          className="w-7 h-7 flex items-center justify-center text-desy-text hover:bg-desy-light rounded-sm transition-colors"
         >
           <ZoomIn size={14} />
         </button>
-        <div className="text-[10px] text-center text-[#6c757d] font-mono py-0.5 leading-none">
+        <div className="text-[10px] text-center text-desy-muted font-mono py-0.5 leading-none">
           {Math.round(scale * 100)}%
         </div>
         <button
           onClick={zoomOut}
           title="Alejar"
-          className="w-7 h-7 flex items-center justify-center text-[#333] hover:bg-[#f5f7fa] rounded-sm transition-colors"
+          className="w-7 h-7 flex items-center justify-center text-desy-text hover:bg-desy-light rounded-sm transition-colors"
         >
           <ZoomOut size={14} />
         </button>
-        <div className="border-t border-[#dee2e6] my-0.5" />
+        <div className="border-t border-desy-border my-0.5" />
         <button
           onClick={fitToScreen}
           title="Ajustar a pantalla"
-          className="w-7 h-7 flex items-center justify-center text-[#333] hover:bg-[#f5f7fa] rounded-sm transition-colors"
+          className="w-7 h-7 flex items-center justify-center text-desy-text hover:bg-desy-light rounded-sm transition-colors"
         >
           <Maximize2 size={12} />
         </button>
@@ -157,18 +157,18 @@ export function OrgChart({ root, onToggleLayout }: OrgChartProps) {
       </div>
 
       {/* Legend */}
-      <div className="border-t border-[#dee2e6] px-4 py-2 flex flex-wrap items-center gap-4 text-xs text-[#6c757d] bg-white flex-shrink-0">
+      <div className="border-t border-desy-border px-4 py-2 flex flex-wrap items-center gap-4 text-xs text-desy-muted bg-white flex-shrink-0">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm bg-[#00539f]" />
-          Organismo principal
+          <span className="inline-block w-3 h-3 rounded-sm bg-desy-blue-light border border-desy-blue" />
+          <span className="font-semibold text-desy-text">Organismo principal</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm bg-white border-2 border-[#00539f]" />
-          Unidades / Direcciones
+          <span className="inline-block w-3 h-3 rounded-sm bg-white border-2 border-desy-blue" />
+          <span className="font-semibold text-desy-text">Unidades / Direcciones</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm bg-[#f5f7fa] border border-[#dee2e6]" />
-          Servicios
+          <span className="inline-block w-3 h-3 rounded-sm bg-desy-page border border-desy-border" />
+          <span className="font-semibold text-desy-text">Servicios</span>
         </span>
         <span className="ml-auto hidden sm:inline">Pasa el ratón sobre un nodo con hijos para cambiar su disposición (H/V)</span>
       </div>
