@@ -118,11 +118,11 @@ export function OrgChartApp() {
   return (
     <div className="flex flex-col h-screen bg-desy-page font-desy">
       {/* Header */}
-      <header className="bg-desy-heading-dark text-white flex-shrink-0 shadow-md">
+      <header className="bg-desy-heading text-white flex-shrink-0 shadow-md">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-desy-muted uppercase tracking-widest">
+              <span className="text-xs font-semibold text-white uppercase tracking-widest">
                 Gobierno de Aragón
               </span>
               <h1 className="text-lg font-bold leading-tight text-white">
