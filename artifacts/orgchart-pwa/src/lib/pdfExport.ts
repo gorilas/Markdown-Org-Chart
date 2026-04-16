@@ -8,42 +8,62 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
     return;
   }
 
-  // Wait for all fonts (Open Sans from Google Fonts) to be available.
   await document.fonts.ready;
 
-  // ── Strategy: inject a <style> into the LIVE document head ─────────────────
-  // html2canvas reads text positions from the live DOM, not from the cloned
-  // document.  onclone style changes therefore do NOT affect text placement.
-  // Injecting a stylesheet into the live document is the only reliable way to
-  // ensure html2canvas captures the correct metrics — it copies ALL <style>
-  // tags to its clone, so the rules apply consistently there too.
-  //
-  // The two problems being fixed:
-  //   1. Browser default margin on <p> (1em ≈ 16 px) — not reset inside the
-  //      clone because Tailwind preflight may not apply there.
-  //   2. half-leading from line-height > 1 — html2canvas adds the leading
-  //      entirely above the first glyph rather than splitting it.
-  //
-  // We scope the selector to #<elementId> so the effect on the live page is
-  // as narrow as possible; the style is removed in the finally block.
-  const overrideId = "pdf-export-style-override";
-  const overrideEl = document.createElement("style");
-  overrideEl.id = overrideId;
-  overrideEl.textContent = `
-    #${elementId} p {
-      margin: 0 !important;
-      padding: 0 !important;
-      line-height: 1em !important;
-    }
-  `;
-  document.head.appendChild(overrideEl);
+  // ── Remove the injected stylesheet from the previous attempt ───────────────
+  document.getElementById("pdf-export-style-override")?.remove();
 
-  // ── Measure natural (zoom:1) dimensions without a visible flash ─────────────
+  // ── Inline-style override on every <p> in the live DOM ─────────────────────
+  // html2canvas clones the live DOM, including each element's `style="…"`
+  // attribute.  Inline styles are part of the HTML — html2canvas's CSS parser
+  // cannot ignore them the way it sometimes ignores injected <style> tags.
+  //
+  // Using style.setProperty(prop, value, "important") writes the rule with
+  // !important into the element's own style attribute, overriding every
+  // class-based or browser-default rule both in the live doc and in the clone.
+  //
+  // Problems eliminated:
+  //   1. Browser-default <p> margin-top: 1em (≈16 px) — not reset by Tailwind
+  //      preflight in the clone context.
+  //   2. Half-leading from leading-snug (line-height 1.375): html2canvas places
+  //      the entire leading ABOVE the first glyph instead of splitting it,
+  //      making text appear lower than center.  Setting line-height equal to
+  //      font-size (0 half-leading) fixes the glyph baseline placement.
+  //
+  // We read font-size from the LIVE document's getComputedStyle — safe because
+  // the element is in the same document as window, no cross-document issue.
+
+  const paragraphs = Array.from(element.querySelectorAll<HTMLElement>("p"));
+
+  // Save whatever inline styles were already set (usually empty strings).
+  const saved = paragraphs.map((p) => ({
+    margin:     p.style.getPropertyValue("margin"),
+    marginPri:  p.style.getPropertyPriority("margin"),
+    padding:    p.style.getPropertyValue("padding"),
+    paddingPri: p.style.getPropertyPriority("padding"),
+    lh:         p.style.getPropertyValue("line-height"),
+    lhPri:      p.style.getPropertyPriority("line-height"),
+  }));
+
+  paragraphs.forEach((p) => {
+    const fs = parseFloat(window.getComputedStyle(p).fontSize) || 12;
+    p.style.setProperty("margin",      "0",        "important");
+    p.style.setProperty("padding",     "0",        "important");
+    p.style.setProperty("line-height", `${fs}px`,  "important");
+  });
+
+  // Force a synchronous reflow so the browser commits new positions before
+  // html2canvas reads element rects (getBoundingClientRect / offsetHeight).
+  void element.getBoundingClientRect();
+
+  // ── Measure natural (zoom:1) dimensions ────────────────────────────────────
   const prevZoom = element.style.zoom;
   element.style.zoom = "1";
+  void element.getBoundingClientRect(); // reflow at zoom:1
   const naturalWidth  = element.scrollWidth;
   const naturalHeight = element.scrollHeight;
   element.style.zoom  = prevZoom;
+  void element.getBoundingClientRect(); // restore reflow
 
   try {
     const canvas = await html2canvas(element, {
@@ -61,7 +81,7 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
       onclone: (_clonedDoc, clonedEl) => {
         const el = clonedEl as HTMLElement;
 
-        // Reset zoom and remove visual chrome in the clone.
+        // Zoom / visual chrome cleanup in the clone.
         el.style.zoom            = "1";
         el.style.boxShadow       = "none";
         el.style.borderRadius    = "0";
@@ -76,8 +96,6 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
           btn.style.display = "none";
         });
 
-        // Force layout reflow so flex positions are committed
-        // before html2canvas reads bounding rects.
         void el.offsetHeight;
       },
     });
@@ -108,8 +126,20 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
 
     const fileName = `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_organigrama.pdf`;
     pdf.save(fileName);
+
   } finally {
-    // Always remove the injected override — even if html2canvas throws.
-    document.getElementById(overrideId)?.remove();
+    // Restore original inline styles on every <p>.
+    paragraphs.forEach((p, i) => {
+      const s = saved[i];
+
+      p.style.removeProperty("margin");
+      if (s.margin) p.style.setProperty("margin", s.margin, s.marginPri);
+
+      p.style.removeProperty("padding");
+      if (s.padding) p.style.setProperty("padding", s.padding, s.paddingPri);
+
+      p.style.removeProperty("line-height");
+      if (s.lh) p.style.setProperty("line-height", s.lh, s.lhPri);
+    });
   }
 }
