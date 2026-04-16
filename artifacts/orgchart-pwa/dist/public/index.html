@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Generador de Organigramas | Gobierno de Aragón</title>
+    <meta name="description" content="Convierte Markdown estructurado en organigramas interactivos. Exporta a PDF. Sistema de diseño DESY del Gobierno de Aragón." />
+    <meta name="theme-color" content="#00539f" />
+    <meta name="application-name" content="Organigramas DESY" />
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="./manifest.json" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Generador de Organigramas | Gobierno de Aragón" />
+    <meta property="og:description" content="Convierte Markdown en organigramas interactivos con estilos DESY" />
+    <meta property="og:type" content="website" />
+
+    <!-- Fonts preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    </noscript>
+    <script type="module" crossorigin src="/assets/index-C2Ahsc68.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DhS8Mb4R.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Service Worker registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function() {});
+        });
+      }
+    </script>
+  </body>
+</html>

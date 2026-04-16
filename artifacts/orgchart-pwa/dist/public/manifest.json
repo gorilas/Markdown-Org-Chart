@@ -1,0 +1,26 @@
+{
+  "name": "Generador de Organigramas - Gobierno de Aragón",
+  "short_name": "Organigramas DESY",
+  "description": "Convierte Markdown estructurado en organigramas interactivos con estilos DESY del Gobierno de Aragón",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00539f",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "orientation": "any"
+}
