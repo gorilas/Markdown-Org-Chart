@@ -3,6 +3,5 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/orgchart-variants/CardGrid.tsx": () => import("../components/mockups/orgchart-variants/CardGrid.tsx"),
   "./components/mockups/orgchart-variants/ColumnNavigator.tsx": () => import("../components/mockups/orgchart-variants/ColumnNavigator.tsx"),
-  "./components/mockups/orgchart-variants/FocusTree.tsx": () => import("../components/mockups/orgchart-variants/FocusTree.tsx"),
-  "./components/mockups/orgchart-variants/OutlineView.tsx": () => import("../components/mockups/orgchart-variants/OutlineView.tsx")
+  "./components/mockups/orgchart-variants/FocusTree.tsx": () => import("../components/mockups/orgchart-variants/FocusTree.tsx")
 };
