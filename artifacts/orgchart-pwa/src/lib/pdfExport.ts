@@ -57,14 +57,33 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
           btn.style.display = "none";
         });
 
-        // Normalise line-height for all paragraph / inline text elements.
-        // html2canvas places the half-leading (the extra space from line-height > 1)
-        // entirely ABOVE the first glyph instead of splitting it above and below.
-        // This makes the top padding look larger than the bottom inside every card.
-        // Setting line-height to 1.1 (tight but readable) eliminates the imbalance
-        // so the py padding renders visually equal on both sides.
+        // ── Three-pronged fix for vertical centering inside node cards ────────
+        //
+        // Problem: html2canvas places the FULL half-leading above each glyph
+        // instead of splitting it evenly, so top padding appears larger.
+        // Additionally, Tailwind's preflight margin reset for <p> may not apply
+        // in the cloned document, adding default browser margins.
+        //
+        // Fix 1 — make every card div a flex column with justify-center so the
+        //   browser (not html2canvas) does the vertical centering before capture.
+        el.querySelectorAll<HTMLElement>("[data-orgcard]").forEach((card) => {
+          card.style.display        = "flex";
+          card.style.flexDirection  = "column";
+          card.style.alignItems     = "center";
+          card.style.justifyContent = "center";
+        });
+        //
+        // Fix 2 — zero out any stray paragraph margins (browser default = 1em)
+        //   that might not be reset by Tailwind preflight in the clone.
         el.querySelectorAll<HTMLElement>("p").forEach((p) => {
-          p.style.lineHeight = "1.1";
+          p.style.margin = "0";
+        });
+        //
+        // Fix 3 — collapse line-height to 1 so there is NO half-leading for
+        //   html2canvas to misplace.  Multi-line text stays readable because the
+        //   cards are narrow and lines are short.
+        el.querySelectorAll<HTMLElement>("p").forEach((p) => {
+          p.style.lineHeight = "1";
         });
       },
     });

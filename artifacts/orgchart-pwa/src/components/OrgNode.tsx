@@ -64,6 +64,7 @@ export function OrgNodeComponent({
       <div style={{ position: "relative" }} className="group">
         <div
           ref={cardRef}
+          data-orgcard=""
           className={`rounded-sm border-2 px-3 py-2 text-center ${style.card}`}
           style={{
             minWidth: isRoot ? 200 : 150,
