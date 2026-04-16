@@ -65,7 +65,7 @@ export function OrgNodeComponent({
         <div
           ref={cardRef}
           data-orgcard=""
-          className={`rounded-sm border-2 px-3 py-2 text-center ${style.card}`}
+          className={`rounded-sm border-2 px-3 py-2 flex flex-col items-center justify-center text-center ${style.card}`}
           style={{
             minWidth: isRoot ? 200 : 150,
             maxWidth: isRoot ? 280 : 230,

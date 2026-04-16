@@ -57,34 +57,33 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
           btn.style.display = "none";
         });
 
-        // ── Three-pronged fix for vertical centering inside node cards ────────
+        // ── Vertical centering fix for node card text ─────────────────────────
         //
-        // Problem: html2canvas places the FULL half-leading above each glyph
-        // instead of splitting it evenly, so top padding appears larger.
-        // Additionally, Tailwind's preflight margin reset for <p> may not apply
-        // in the cloned document, adding default browser margins.
+        // The card component already uses flex + justify-center (via Tailwind
+        // classes) so the BROWSER computes the correct position of each <p>
+        // BEFORE html2canvas reads it.  All we must do here is ensure:
         //
-        // Fix 1 — make every card div a flex column with justify-center so the
-        //   browser (not html2canvas) does the vertical centering before capture.
-        el.querySelectorAll<HTMLElement>("[data-orgcard]").forEach((card) => {
-          card.style.display        = "flex";
-          card.style.flexDirection  = "column";
-          card.style.alignItems     = "center";
-          card.style.justifyContent = "center";
-        });
+        // 1. Paragraph margins are zero (browser default is 1em which can
+        //    add unexpected space if Tailwind preflight is not fully applied
+        //    in the cloned document).
         //
-        // Fix 2 — zero out any stray paragraph margins (browser default = 1em)
-        //   that might not be reset by Tailwind preflight in the clone.
+        // 2. line-height collapses to exactly font-size (no half-leading).
+        //    IMPORTANT: use explicit pixel values — a bare "1" may be parsed
+        //    as 1 px instead of 1 × font-size in the clone's rendering context.
+        //    We read font-size from the clone's own getComputedStyle so the
+        //    value is always correct regardless of text scale.
+        //
+        // 3. Force a synchronous layout reflow (by reading offsetHeight) so
+        //    every flex position is committed before html2canvas reads rects.
+        const cloneWin = _clonedDoc.defaultView ?? window;
         el.querySelectorAll<HTMLElement>("p").forEach((p) => {
-          p.style.margin = "0";
+          const fs = parseFloat(cloneWin.getComputedStyle(p).fontSize) || 12;
+          p.style.margin     = "0";
+          p.style.padding    = "0";
+          p.style.lineHeight = `${fs}px`; // line-height === font-size → no leading
         });
-        //
-        // Fix 3 — collapse line-height to 1 so there is NO half-leading for
-        //   html2canvas to misplace.  Multi-line text stays readable because the
-        //   cards are narrow and lines are short.
-        el.querySelectorAll<HTMLElement>("p").forEach((p) => {
-          p.style.lineHeight = "1";
-        });
+        // Force reflow so flex positions are resolved before html2canvas reads them.
+        void el.offsetHeight;
       },
     });
 
