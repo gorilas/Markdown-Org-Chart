@@ -58,31 +58,24 @@ export async function exportOrgChartToPdf(elementId: string, title: string = "Or
         });
 
         // ── Vertical centering fix for node card text ─────────────────────────
+        // Root cause: the browser's default stylesheet gives <p> elements
+        // margin-top: 1em (≈16 px).  Tailwind preflight resets this to 0 in
+        // the live DOM, but the reset may not apply inside html2canvas's cloned
+        // document — leaving up to 16 px of invisible space above the first
+        // line of text and making top padding appear far larger than bottom.
         //
-        // The card component already uses flex + justify-center (via Tailwind
-        // classes) so the BROWSER computes the correct position of each <p>
-        // BEFORE html2canvas reads it.  All we must do here is ensure:
-        //
-        // 1. Paragraph margins are zero (browser default is 1em which can
-        //    add unexpected space if Tailwind preflight is not fully applied
-        //    in the cloned document).
-        //
-        // 2. line-height collapses to exactly font-size (no half-leading).
-        //    IMPORTANT: use explicit pixel values — a bare "1" may be parsed
-        //    as 1 px instead of 1 × font-size in the clone's rendering context.
-        //    We read font-size from the clone's own getComputedStyle so the
-        //    value is always correct regardless of text scale.
-        //
-        // 3. Force a synchronous layout reflow (by reading offsetHeight) so
-        //    every flex position is committed before html2canvas reads rects.
-        const cloneWin = _clonedDoc.defaultView ?? window;
+        // Fix: zero margins/padding FIRST (crash-safe, no API calls), then
+        // collapse line-height to "1em" — which always resolves to the
+        // element's own font-size with zero half-leading, without needing
+        // getComputedStyle (which can silently crash on cross-document elements
+        // and prevent the margin reset from ever executing).
         el.querySelectorAll<HTMLElement>("p").forEach((p) => {
-          const fs = parseFloat(cloneWin.getComputedStyle(p).fontSize) || 12;
-          p.style.margin     = "0";
+          p.style.margin     = "0";       // kill browser-default 1em margin
           p.style.padding    = "0";
-          p.style.lineHeight = `${fs}px`; // line-height === font-size → no leading
+          p.style.lineHeight = "1em";     // 1em = font-size, no half-leading
         });
-        // Force reflow so flex positions are resolved before html2canvas reads them.
+        // Force a synchronous layout reflow so the flex centering on every
+        // card div is committed before html2canvas reads element rects.
         void el.offsetHeight;
       },
     });
