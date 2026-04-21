@@ -1,10 +1,11 @@
-import { useRef, useState, useEffect } from "react";
-import { OrgNode as OrgNodeType } from "@/lib/markdownParser";
-import { AlignJustify, AlignCenter } from "lucide-react";
+import { useRef, useState, useEffect, useLayoutEffect } from "react";
+import { NodePosition, OrgNode as OrgNodeType } from "@/lib/markdownParser";
+import { AlignJustify, AlignCenter, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface OrgNodeProps {
   node: OrgNodeType;
   onToggleLayout: (id: string) => void;
+  onSetPosition: (id: string, position: NodePosition) => void;
   isRoot?: boolean;
 }
 
@@ -28,16 +29,22 @@ const CARD_STYLES = [
   },
 ];
 
+const TOGGLE_BTN_BASE =
+  "w-5 h-5 rounded-full flex items-center justify-center border shadow-sm transition-colors";
 const TOGGLE_BTN =
   "bg-desy-blue text-white border-desy-blue-dark hover:bg-desy-blue-dark";
+const TOGGLE_BTN_ACTIVE =
+  "bg-desy-blue-dark text-white border-desy-blue-dark hover:bg-desy-blue";
 
 export function OrgNodeComponent({
   node,
   onToggleLayout,
+  onSetPosition,
   isRoot = false,
 }: OrgNodeProps) {
   const hasChildren = node.children.length > 0;
   const isHorizontal = node.layout === "horizontal";
+  const isLevel1 = node.level === 1;
   const style = CARD_STYLES[Math.min(node.level, CARD_STYLES.length - 1)];
 
   /*
@@ -57,6 +64,18 @@ export function OrgNodeComponent({
     update();
     return () => ro.disconnect();
   }, []);
+
+  // Split root children into lateral / cascade buckets
+  const leftLaterals = isRoot
+    ? node.children.filter((c) => c.position === "lateral-left")
+    : [];
+  const rightLaterals = isRoot
+    ? node.children.filter((c) => c.position === "lateral-right")
+    : [];
+  const cascadeChildren = isRoot
+    ? node.children.filter((c) => c.position !== "lateral-left" && c.position !== "lateral-right")
+    : node.children;
+  const hasLaterals = leftLaterals.length > 0 || rightLaterals.length > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -89,36 +108,96 @@ export function OrgNodeComponent({
           )}
         </div>
 
-        {hasChildren && (
-          <button
-            onClick={() => onToggleLayout(node.id)}
-            title={isHorizontal ? "Cambiar a vertical" : "Cambiar a horizontal"}
-            className={`
-              absolute -top-2.5 -right-2.5 z-20
-              w-5 h-5 rounded-full flex items-center justify-center
-              border shadow-sm transition-all duration-150
-              ${TOGGLE_BTN}
-              opacity-0 group-hover:opacity-100 focus:opacity-100
-            `}
+        {/* Floating action buttons on the top edge of the card */}
+        {(hasChildren || isLevel1) && (
+          <div
+            className="absolute -top-2.5 right-0 z-20 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+            style={{ transform: "translateX(8px)" }}
           >
-            {isHorizontal ? <AlignJustify size={9} /> : <AlignCenter size={9} />}
-          </button>
+            {isLevel1 && (() => {
+              const active = node.position === "lateral-left";
+              const label = active ? "Volver a cascada" : "Colocar a la izquierda";
+              return (
+                <button
+                  onClick={() =>
+                    onSetPosition(node.id, active ? "cascade" : "lateral-left")
+                  }
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={active}
+                  className={`${TOGGLE_BTN_BASE} ${active ? TOGGLE_BTN_ACTIVE : TOGGLE_BTN}`}
+                >
+                  <ChevronLeft size={11} />
+                </button>
+              );
+            })()}
+            {hasChildren && (() => {
+              const label = isHorizontal ? "Cambiar a disposición vertical" : "Cambiar a disposición horizontal";
+              return (
+                <button
+                  onClick={() => onToggleLayout(node.id)}
+                  title={label}
+                  aria-label={label}
+                  className={`${TOGGLE_BTN_BASE} ${TOGGLE_BTN}`}
+                >
+                  {isHorizontal ? <AlignJustify size={9} /> : <AlignCenter size={9} />}
+                </button>
+              );
+            })()}
+            {isLevel1 && (() => {
+              const active = node.position === "lateral-right";
+              const label = active ? "Volver a cascada" : "Colocar a la derecha";
+              return (
+                <button
+                  onClick={() =>
+                    onSetPosition(node.id, active ? "cascade" : "lateral-right")
+                  }
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={active}
+                  className={`${TOGGLE_BTN_BASE} ${active ? TOGGLE_BTN_ACTIVE : TOGGLE_BTN}`}
+                >
+                  <ChevronRight size={11} />
+                </button>
+              );
+            })()}
+          </div>
         )}
       </div>
 
-      {/* Stem + children */}
+      {/* Children: either the special root layout (with laterals) or the standard layouts */}
       {hasChildren && (
         <>
-          <div style={{ width: 1, height: 16, backgroundColor: CONNECTOR }} />
-
-          {isHorizontal ? (
-            <HorizontalGroup children={node.children} onToggleLayout={onToggleLayout} />
-          ) : (
-            <VerticalGroup
-              children={node.children}
-              onToggleLayout={onToggleLayout}
+          {isRoot && hasLaterals ? (
+            <RootLateralLayout
+              cascadeChildren={cascadeChildren}
+              leftLaterals={leftLaterals}
+              rightLaterals={rightLaterals}
+              parentLayout={node.layout}
               parentCenterX={parentCenterX}
+              onToggleLayout={onToggleLayout}
+              onSetPosition={onSetPosition}
             />
+          ) : (
+            cascadeChildren.length > 0 && (
+              <>
+                <div style={{ width: 1, height: 16, backgroundColor: CONNECTOR }} />
+                {isHorizontal ? (
+                  <HorizontalGroup
+                    children={cascadeChildren}
+                    onToggleLayout={onToggleLayout}
+                    onSetPosition={onSetPosition}
+                  />
+                ) : (
+                  <VerticalGroup
+                    children={cascadeChildren}
+                    onToggleLayout={onToggleLayout}
+                    onSetPosition={onSetPosition}
+                    parentCenterX={parentCenterX}
+                  />
+                )}
+              </>
+            )
           )}
         </>
       )}
@@ -139,13 +218,13 @@ export function OrgNodeComponent({
 function HorizontalGroup({
   children,
   onToggleLayout,
+  onSetPosition,
 }: {
   children: OrgNodeType[];
   onToggleLayout: (id: string) => void;
+  onSetPosition: (id: string, position: NodePosition) => void;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
-  // lineLeft  = pixels from left edge  to centre of first column
-  // lineRight = pixels from right edge to centre of last column
   const [lineLeft, setLineLeft] = useState<number | null>(null);
   const [lineRight, setLineRight] = useState<number | null>(null);
 
@@ -170,7 +249,6 @@ function HorizontalGroup({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch" }}>
-      {/* Horizontal connector — rendered in a zero-height strip above the row */}
       {children.length > 1 && lineLeft !== null && lineRight !== null && (
         <div style={{ position: "relative", height: 0 }}>
           <div
@@ -200,7 +278,11 @@ function HorizontalGroup({
             }}
           >
             <div style={{ width: 1, height: 16, backgroundColor: CONNECTOR }} />
-            <OrgNodeComponent node={child} onToggleLayout={onToggleLayout} />
+            <OrgNodeComponent
+              node={child}
+              onToggleLayout={onToggleLayout}
+              onSetPosition={onSetPosition}
+            />
           </div>
         ))}
       </div>
@@ -210,42 +292,23 @@ function HorizontalGroup({
 
 /*
  * VerticalGroup — children stacked vertically with T-junction connectors.
- *
- * Geometry (x measured from the VerticalGroup's left edge, which = OrgNode wrapper left):
- *
- *   [card centred at 50% of OrgNode wrapper]
- *        │   ← 16 px stem above this component
- *   ─────┘   ← bridge: absolute in stretch-div, left=parentCenterX, right="50%"
- *   │            connects spine (≈ card centre) to exact stem bottom (right=50%)
- *   ├──── child 1
- *   │
- *   └──── child 2
- *
- * Key insight: the spine is positioned with `position:absolute, left:parentCenterX`
- * on the ROW div (not inside the spacer column). This ensures it spans the full
- * row height including top/bottom padding, so consecutive rows' spines touch
- * and the bridge (rendered above in an alignSelf:stretch wrapper) connects
- * seamlessly at y=0 without any gap.
+ * See module-level comments for geometry details (unchanged from original).
  */
 function VerticalGroup({
   children,
   onToggleLayout,
+  onSetPosition,
   parentCenterX,
 }: {
   children: OrgNodeType[];
   onToggleLayout: (id: string) => void;
+  onSetPosition: (id: string, position: NodePosition) => void;
   parentCenterX: number;
 }) {
   const last = children.length - 1;
 
   return (
-    /*
-     * alignSelf:stretch makes this div fill the OrgNode wrapper's cross-size (width),
-     * so right:"50%" on the bridge resolves to exactly half of the wrapper width,
-     * which equals the centred card's horizontal midpoint.
-     */
     <div style={{ alignSelf: "stretch", position: "relative" }}>
-      {/* Bridge: from spine (left:parentCenterX) to stem bottom (right:50% = wrapper centre) */}
       <div
         style={{
           position: "absolute",
@@ -261,18 +324,6 @@ function VerticalGroup({
         {children.map((child, i) => {
           const isLast = i === last;
           return (
-            /*
-             * position:relative here makes this row the containing block for the
-             * spine segments. The spine is therefore positioned relative to the
-             * row's full box (including padding), so:
-             *   top:0   = top edge of the row (including padding-top)
-             *   50%     = vertical midpoint of the row  ≡  alignItems:center position
-             *   bottom:0 = bottom edge of the row (including padding-bottom)
-             *
-             * Consecutive rows share a border at their top/bottom edges, so each
-             * bottom-half spine exactly touches the next row's top-half spine.
-             * The bridge above also touches the first row's spine at y=0.
-             */
             <div
               key={child.id}
               style={{
@@ -283,7 +334,6 @@ function VerticalGroup({
                 position: "relative",
               }}
             >
-              {/* Spine: top half — from row top to row vertical centre */}
               <div
                 style={{
                   position: "absolute",
@@ -294,7 +344,6 @@ function VerticalGroup({
                   backgroundColor: CONNECTOR,
                 }}
               />
-              {/* Spine: bottom half — from row centre to row bottom (skip on last child) */}
               {!isLast && (
                 <div
                   style={{
@@ -308,17 +357,328 @@ function VerticalGroup({
                 />
               )}
 
-              {/* Spacer: pushes branch and child card to start at parentCenterX */}
               <div style={{ width: parentCenterX, flexShrink: 0 }} />
-
-              {/* Horizontal branch from spine to child card */}
               <div style={{ width: 20, height: 1, backgroundColor: CONNECTOR, flexShrink: 0 }} />
 
-              {/* Child subtree */}
-              <OrgNodeComponent node={child} onToggleLayout={onToggleLayout} />
+              <OrgNodeComponent
+                node={child}
+                onToggleLayout={onToggleLayout}
+                onSetPosition={onSetPosition}
+              />
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/*
+ * RootLateralLayout — used only when the root has at least one lateral child.
+ *
+ * Geometry (3-column flex row, gap 16):
+ *
+ *   ┌──────────────┬──────────────────────┬──────────────┐
+ *   │ left column  │   cascade column     │ right column │
+ *   │ (laterals)   │   (spine spacer +    │  (laterals)  │
+ *   │              │    H/V cascade)      │              │
+ *   └──────────────┴──────────────────────┴──────────────┘
+ *
+ * Both side columns are forced to the same min-width (max of measured
+ * natural widths) so the cascade column ends up centred — which means its
+ * horizontal centre coincides with the parent card's centre (the parent card
+ * is centred over the wrapper by alignItems:center on the OrgNode wrapper).
+ *
+ * The cascade column starts with a "spine zone" spacer whose height equals
+ * the tallest side column's content height plus 16 px. A single absolute
+ * vertical line is drawn through it at left:50%, replacing the usual 16-px
+ * stem. Each lateral row gets a horizontal connector (absolute, in the
+ * wrapper) drawn from the spine X to that lateral card's inner edge at the
+ * card's vertical centre.
+ */
+function RootLateralLayout({
+  cascadeChildren,
+  leftLaterals,
+  rightLaterals,
+  parentLayout,
+  parentCenterX,
+  onToggleLayout,
+  onSetPosition,
+}: {
+  cascadeChildren: OrgNodeType[];
+  leftLaterals: OrgNodeType[];
+  rightLaterals: OrgNodeType[];
+  parentLayout: "horizontal" | "vertical";
+  parentCenterX: number;
+  onToggleLayout: (id: string) => void;
+  onSetPosition: (id: string, position: NodePosition) => void;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const cascadeColRef = useRef<HTMLDivElement>(null);
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const rightColRef = useRef<HTMLDivElement>(null);
+  const leftRowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const rightRowRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  type Geom = {
+    spineX: number;
+    spineHeight: number; // height of the spacer above cascade group, in cascade column
+    sideMin: number;
+    leftConnectors: { y: number; fromX: number }[];
+    rightConnectors: { y: number; toX: number }[];
+  };
+
+  const [geom, setGeom] = useState<Geom>({
+    spineX: 0,
+    spineHeight: 0,
+    sideMin: 0,
+    leftConnectors: [],
+    rightConnectors: [],
+  });
+
+  // Track previous values to break feedback loops in the ResizeObserver
+  const lastGeomRef = useRef<Geom>(geom);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const wrapper = wrapperRef.current;
+      const cascadeCol = cascadeColRef.current;
+      const leftCol = leftColRef.current;
+      const rightCol = rightColRef.current;
+      if (!wrapper || !cascadeCol) return;
+
+      const wRect = wrapper.getBoundingClientRect();
+      const cRect = cascadeCol.getBoundingClientRect();
+
+      // Side natural widths: temporarily strip applied min-width to read intrinsic content size.
+      const measureNaturalWidth = (el: HTMLDivElement | null): number => {
+        if (!el) return 0;
+        const prev = el.style.minWidth;
+        el.style.minWidth = "0";
+        // Force reflow
+        const w = el.scrollWidth;
+        el.style.minWidth = prev;
+        return w;
+      };
+      const lw = measureNaturalWidth(leftCol);
+      const rw = measureNaturalWidth(rightCol);
+      const sideMin = Math.max(lw, rw);
+
+      const lh = leftCol?.scrollHeight ?? 0;
+      const rh = rightCol?.scrollHeight ?? 0;
+      const spineHeight = Math.max(lh, rh);
+
+      const spineX = cRect.left + cRect.width / 2 - wRect.left;
+
+      const leftConnectors = leftLaterals.map((_, i) => {
+        const row = leftRowRefs.current[i];
+        if (!row) return { y: 0, fromX: 0 };
+        const card = row.querySelector<HTMLElement>("[data-orgcard]");
+        const target = card ?? row;
+        const r = target.getBoundingClientRect();
+        return {
+          y: r.top + r.height / 2 - wRect.top,
+          fromX: r.right - wRect.left,
+        };
+      });
+      const rightConnectors = rightLaterals.map((_, i) => {
+        const row = rightRowRefs.current[i];
+        if (!row) return { y: 0, toX: 0 };
+        const card = row.querySelector<HTMLElement>("[data-orgcard]");
+        const target = card ?? row;
+        const r = target.getBoundingClientRect();
+        return {
+          y: r.top + r.height / 2 - wRect.top,
+          toX: r.left - wRect.left,
+        };
+      });
+
+      const next: Geom = { spineX, spineHeight, sideMin, leftConnectors, rightConnectors };
+
+      const prev = lastGeomRef.current;
+      const close = (a: number, b: number) => Math.abs(a - b) < 0.5;
+      const sameConnList = (
+        a: { y: number; fromX?: number; toX?: number }[],
+        b: { y: number; fromX?: number; toX?: number }[],
+      ) => {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (!close(a[i].y, b[i].y)) return false;
+          if (a[i].fromX !== undefined && !close(a[i].fromX!, b[i].fromX!)) return false;
+          if (a[i].toX !== undefined && !close(a[i].toX!, b[i].toX!)) return false;
+        }
+        return true;
+      };
+      if (
+        close(prev.spineX, next.spineX) &&
+        close(prev.spineHeight, next.spineHeight) &&
+        close(prev.sideMin, next.sideMin) &&
+        sameConnList(prev.leftConnectors, next.leftConnectors) &&
+        sameConnList(prev.rightConnectors, next.rightConnectors)
+      ) {
+        return;
+      }
+      lastGeomRef.current = next;
+      setGeom(next);
+    };
+
+    measure();
+    const ro = new ResizeObserver(() => measure());
+    if (wrapperRef.current) ro.observe(wrapperRef.current);
+    if (cascadeColRef.current) ro.observe(cascadeColRef.current);
+    if (leftColRef.current) ro.observe(leftColRef.current);
+    if (rightColRef.current) ro.observe(rightColRef.current);
+    return () => ro.disconnect();
+  }, [leftLaterals.length, rightLaterals.length, cascadeChildren.length, parentLayout]);
+
+  const isHorizontal = parentLayout === "horizontal";
+  const SPINE_PAD = 16; // pixels of extra spine below the laterals zone, before the cascade group
+
+  return (
+    <div
+      ref={wrapperRef}
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        gap: 16,
+        alignSelf: "stretch",
+      }}
+    >
+      {/* Central vertical spine */}
+      <div
+        style={{
+          position: "absolute",
+          left: geom.spineX - 0.5,
+          top: 0,
+          height: Math.max(0, geom.spineHeight + SPINE_PAD),
+          width: 1,
+          backgroundColor: CONNECTOR,
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Horizontal connectors, left side */}
+      {geom.leftConnectors.map((c, i) => (
+        <div
+          key={`lc-${i}`}
+          style={{
+            position: "absolute",
+            left: c.fromX,
+            top: c.y - 0.5,
+            width: Math.max(0, geom.spineX - c.fromX),
+            height: 1,
+            backgroundColor: CONNECTOR,
+            pointerEvents: "none",
+          }}
+        />
+      ))}
+
+      {/* Horizontal connectors, right side */}
+      {geom.rightConnectors.map((c, i) => (
+        <div
+          key={`rc-${i}`}
+          style={{
+            position: "absolute",
+            left: geom.spineX,
+            top: c.y - 0.5,
+            width: Math.max(0, c.toX - geom.spineX),
+            height: 1,
+            backgroundColor: CONNECTOR,
+            pointerEvents: "none",
+          }}
+        />
+      ))}
+
+      {/* Left lateral column (subtrees right-aligned) */}
+      <div
+        ref={leftColRef}
+        style={{
+          minWidth: geom.sideMin,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 12,
+        }}
+      >
+        {leftLaterals.map((child, i) => (
+          <div
+            key={child.id}
+            ref={(el) => {
+              leftRowRefs.current[i] = el;
+            }}
+          >
+            <OrgNodeComponent
+              node={child}
+              onToggleLayout={onToggleLayout}
+              onSetPosition={onSetPosition}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Cascade column */}
+      <div
+        ref={cascadeColRef}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
+      >
+        {/* Spine spacer: matches the lateral zone height + extra padding */}
+        <div
+          style={{
+            height: geom.spineHeight + SPINE_PAD,
+            flexShrink: 0,
+          }}
+        />
+
+        {cascadeChildren.length > 0 ? (
+          isHorizontal ? (
+            <HorizontalGroup
+              children={cascadeChildren}
+              onToggleLayout={onToggleLayout}
+              onSetPosition={onSetPosition}
+            />
+          ) : (
+            <VerticalGroup
+              children={cascadeChildren}
+              onToggleLayout={onToggleLayout}
+              onSetPosition={onSetPosition}
+              parentCenterX={parentCenterX}
+            />
+          )
+        ) : null}
+      </div>
+
+      {/* Right lateral column (subtrees left-aligned) */}
+      <div
+        ref={rightColRef}
+        style={{
+          minWidth: geom.sideMin,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: 12,
+        }}
+      >
+        {rightLaterals.map((child, i) => (
+          <div
+            key={child.id}
+            ref={(el) => {
+              rightRowRefs.current[i] = el;
+            }}
+          >
+            <OrgNodeComponent
+              node={child}
+              onToggleLayout={onToggleLayout}
+              onSetPosition={onSetPosition}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

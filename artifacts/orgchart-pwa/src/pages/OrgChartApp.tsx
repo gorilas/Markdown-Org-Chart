@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { OrgNode, parseMarkdownToTree, toggleNodeLayout } from "@/lib/markdownParser";
+import { NodePosition, OrgNode, parseMarkdownToTree, setNodePosition, toggleNodeLayout } from "@/lib/markdownParser";
 import { exportOrgChartToPdf } from "@/lib/pdfExport";
 import { OrgChart } from "@/components/OrgChart";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
@@ -104,6 +104,11 @@ export function OrgChartApp() {
   const handleToggleLayout = useCallback((id: string) => {
     if (!tree) return;
     setTree((prev) => (prev ? toggleNodeLayout(prev, id) : null));
+  }, [tree]);
+
+  const handleSetPosition = useCallback((id: string, position: NodePosition) => {
+    if (!tree) return;
+    setTree((prev) => (prev ? setNodePosition(prev, id, position) : null));
   }, [tree]);
 
   const handleExportPdf = async () => {
@@ -215,7 +220,7 @@ export function OrgChartApp() {
             </div>
           ) : (
             <div className="p-6">
-              <OrgChart root={tree} onToggleLayout={handleToggleLayout} />
+              <OrgChart root={tree} onToggleLayout={handleToggleLayout} onSetPosition={handleSetPosition} />
             </div>
           )}
         </div>
