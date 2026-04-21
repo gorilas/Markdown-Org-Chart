@@ -1,14 +1,10 @@
-export type NodeLayout = "horizontal" | "vertical";
-export type NodePosition = "cascade" | "lateral-left" | "lateral-right";
-
 export interface OrgNode {
   id: string;
   label: string;
   subtitle?: string;
   level: number;
   children: OrgNode[];
-  layout: NodeLayout;
-  position: NodePosition;
+  layout: "horizontal" | "vertical";
 }
 
 function slugify(text: string): string {
@@ -38,24 +34,13 @@ function makeNodeId(path: string[]): string {
   return full.slice(0, 60) + "__" + hashStr(full);
 }
 
-function getStoredLayout(id: string): NodeLayout {
+function getStoredLayout(id: string): "horizontal" | "vertical" {
   try {
     const stored = localStorage.getItem(`layout-${id}`);
     if (stored === "horizontal" || stored === "vertical") return stored;
   } catch {
   }
   return "horizontal";
-}
-
-function getStoredPosition(id: string): NodePosition {
-  try {
-    const stored = localStorage.getItem(`position-${id}`);
-    if (stored === "cascade" || stored === "lateral-left" || stored === "lateral-right") {
-      return stored;
-    }
-  } catch {
-  }
-  return "cascade";
 }
 
 export function parseMarkdownToTree(markdown: string): OrgNode | null {
@@ -97,7 +82,6 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
     subtitle: rootBlock.subtitle || undefined,
     level: 0,
     layout: getStoredLayout(rootId),
-    position: getStoredPosition(rootId),
     children: [],
   };
 
@@ -108,7 +92,6 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
       label: h3Block.heading,
       level: 1,
       layout: getStoredLayout(h3Id),
-      position: getStoredPosition(h3Id),
       children: h3Block.items.map((item) => {
         const itemId = makeNodeId([rootBlock.heading, h3Block.heading, item]);
         return {
@@ -116,7 +99,6 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
           label: item,
           level: 2,
           layout: getStoredLayout(itemId),
-          position: getStoredPosition(itemId),
           children: [],
         };
       }),
@@ -132,7 +114,6 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
       label: block.heading,
       level: 1,
       layout: getStoredLayout(blockId),
-      position: getStoredPosition(blockId),
       children: block.h3Blocks.flatMap((h3) => {
         if (h3.items.length === 0) {
           const h3Id = makeNodeId([rootBlock.heading, block.heading, h3.heading]);
@@ -141,7 +122,6 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
             label: h3.heading,
             level: 2,
             layout: getStoredLayout(h3Id),
-            position: getStoredPosition(h3Id),
             children: [],
           }];
         }
@@ -152,7 +132,6 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
             label: item,
             level: 2,
             layout: getStoredLayout(itemId),
-            position: getStoredPosition(itemId),
             children: [],
           };
         });
@@ -169,7 +148,7 @@ export function toggleNodeLayout(
   targetId: string
 ): OrgNode {
   if (node.id === targetId) {
-    const newLayout: NodeLayout = node.layout === "horizontal" ? "vertical" : "horizontal";
+    const newLayout = node.layout === "horizontal" ? "vertical" : "horizontal";
     try {
       localStorage.setItem(`layout-${node.id}`, newLayout);
     } catch {
@@ -180,28 +159,5 @@ export function toggleNodeLayout(
   return {
     ...node,
     children: node.children.map((child) => toggleNodeLayout(child, targetId)),
-  };
-}
-
-export function setNodePosition(
-  node: OrgNode,
-  targetId: string,
-  position: NodePosition
-): OrgNode {
-  if (node.id === targetId) {
-    try {
-      if (position === "cascade") {
-        localStorage.removeItem(`position-${node.id}`);
-      } else {
-        localStorage.setItem(`position-${node.id}`, position);
-      }
-    } catch {
-      console.warn("localStorage unavailable; position preference will not persist.");
-    }
-    return { ...node, position };
-  }
-  return {
-    ...node,
-    children: node.children.map((child) => setNodePosition(child, targetId, position)),
   };
 }

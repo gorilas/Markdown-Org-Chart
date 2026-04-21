@@ -1,12 +1,11 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { NodePosition, OrgNode } from "@/lib/markdownParser";
+import { OrgNode } from "@/lib/markdownParser";
 import { OrgNodeComponent } from "./OrgNode";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
 interface OrgChartProps {
   root: OrgNode;
   onToggleLayout: (id: string) => void;
-  onSetPosition: (id: string, position: NodePosition) => void;
 }
 
 const ZOOM_MIN = 0.2;
@@ -14,7 +13,7 @@ const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
 const ZOOM_PADDING = 0.95; // 5 % breathing room when fitting
 
-export function OrgChart({ root, onToggleLayout, onSetPosition }: OrgChartProps) {
+export function OrgChart({ root, onToggleLayout }: OrgChartProps) {
   const [scale, setScale] = useState(0.85);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -152,12 +151,7 @@ export function OrgChart({ root, onToggleLayout, onSetPosition }: OrgChartProps)
               display: "inline-block",
             }}
           >
-            <OrgNodeComponent
-              node={root}
-              onToggleLayout={onToggleLayout}
-              onSetPosition={onSetPosition}
-              isRoot
-            />
+            <OrgNodeComponent node={root} onToggleLayout={onToggleLayout} isRoot />
           </div>
         </div>
       </div>

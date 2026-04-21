@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { NodePosition, OrgNode, parseMarkdownToTree, setNodePosition, toggleNodeLayout } from "@/lib/markdownParser";
+import { OrgNode, parseMarkdownToTree, toggleNodeLayout } from "@/lib/markdownParser";
 import { exportOrgChartToPdf } from "@/lib/pdfExport";
 import { OrgChart } from "@/components/OrgChart";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
@@ -106,11 +106,6 @@ export function OrgChartApp() {
     setTree((prev) => (prev ? toggleNodeLayout(prev, id) : null));
   }, [tree]);
 
-  const handleSetPosition = useCallback((id: string, position: NodePosition) => {
-    if (!tree) return;
-    setTree((prev) => (prev ? setNodePosition(prev, id, position) : null));
-  }, [tree]);
-
   const handleExportPdf = async () => {
     setExporting(true);
     try {
@@ -159,9 +154,8 @@ export function OrgChartApp() {
             <p className="font-semibold text-white mb-1">Cómo usar esta herramienta:</p>
             <ul className="space-y-1 text-xs list-disc list-inside text-desy-muted">
               <li>Escribe o pega Markdown con niveles <code className="bg-desy-heading px-1 rounded">##</code> (organismo), <code className="bg-desy-heading px-1 rounded">###</code> (unidades) y <code className="bg-desy-heading px-1 rounded">-</code> (servicios)</li>
-              <li>Pasa el ratón sobre un nodo y pulsa el botón central para cambiar entre disposición horizontal y vertical</li>
-              <li>En los nodos de primer nivel, los chevrones izquierda/derecha colocan el nodo a un lado del organismo principal (vuelve a pulsar para regresar a cascada)</li>
-              <li>Las preferencias de cada nodo (disposición y posición lateral) se guardan automáticamente en el navegador</li>
+              <li>Pasa el ratón sobre un nodo y pulsa el botón de layout para cambiar entre horizontal y vertical</li>
+              <li>El layout de cada nodo se guarda automáticamente en el navegador</li>
               <li>Usa "Descargar PDF" para exportar el organigrama en A4 horizontal</li>
             </ul>
           </div>
@@ -221,7 +215,7 @@ export function OrgChartApp() {
             </div>
           ) : (
             <div className="p-6">
-              <OrgChart root={tree} onToggleLayout={handleToggleLayout} onSetPosition={handleSetPosition} />
+              <OrgChart root={tree} onToggleLayout={handleToggleLayout} />
             </div>
           )}
         </div>
