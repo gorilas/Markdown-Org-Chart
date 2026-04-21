@@ -159,8 +159,9 @@ export function OrgChartApp() {
             <p className="font-semibold text-white mb-1">Cómo usar esta herramienta:</p>
             <ul className="space-y-1 text-xs list-disc list-inside text-desy-muted">
               <li>Escribe o pega Markdown con niveles <code className="bg-desy-heading px-1 rounded">##</code> (organismo), <code className="bg-desy-heading px-1 rounded">###</code> (unidades) y <code className="bg-desy-heading px-1 rounded">-</code> (servicios)</li>
-              <li>Pasa el ratón sobre un nodo y pulsa el botón de layout para cambiar entre horizontal y vertical</li>
-              <li>El layout de cada nodo se guarda automáticamente en el navegador</li>
+              <li>Pasa el ratón sobre un nodo y pulsa el botón central para cambiar entre disposición horizontal y vertical</li>
+              <li>En los nodos de primer nivel, los chevrones izquierda/derecha colocan el nodo a un lado del organismo principal (vuelve a pulsar para regresar a cascada)</li>
+              <li>Las preferencias de cada nodo (disposición y posición lateral) se guardan automáticamente en el navegador</li>
               <li>Usa "Descargar PDF" para exportar el organigrama en A4 horizontal</li>
             </ul>
           </div>
