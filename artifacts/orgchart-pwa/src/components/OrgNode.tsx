@@ -314,30 +314,33 @@ function VerticalGroup({
   parentCenterX: number;
 }) {
   const groupRef = useRef<HTMLDivElement>(null);
-  const [trunkHeight, setTrunkHeight] = useState(0);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [geom, setGeom] = useState<{ trunkHeight: number; stubsY: number[] }>({
+    trunkHeight: 0,
+    stubsY: [],
+  });
 
   useLayoutEffect(() => {
     const el = groupRef.current;
     if (!el) return;
-    const update = () => {
-      const rows = el.children;
-      // Last child after the absolute trunk div (which is the FIRST child).
-      const lastRow = rows[rows.length - 1] as HTMLElement | undefined;
-      if (!lastRow) {
-        setTrunkHeight(0);
-        return;
-      }
+    const measure = () => {
       const groupTop = el.getBoundingClientRect().top;
-      const r = lastRow.getBoundingClientRect();
-      const h = r.top + r.height / 2 - groupTop;
-      setTrunkHeight(Math.max(0, h));
+      const stubsY = rowRefs.current.map((row) => {
+        if (!row) return 0;
+        // Measure the child's CARD (not the row, which may include the
+        // child's own descendants below the card).
+        const card = row.querySelector<HTMLElement>("[data-orgcard]");
+        const target = card ?? row;
+        const r = target.getBoundingClientRect();
+        return r.top + r.height / 2 - groupTop;
+      });
+      const lastY = stubsY.length > 0 ? stubsY[stubsY.length - 1] : 0;
+      setGeom({ trunkHeight: Math.max(0, lastY), stubsY });
     };
-    update();
-    const ro = new ResizeObserver(update);
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    for (const row of Array.from(el.children)) {
-      ro.observe(row as Element);
-    }
+    rowRefs.current.forEach((row) => row && ro.observe(row));
     return () => ro.disconnect();
   }, [children.length]);
 
@@ -361,25 +364,42 @@ function VerticalGroup({
           left: parentCenterX - 0.5,
           top: 0,
           width: 1,
-          height: trunkHeight,
+          height: geom.trunkHeight,
           backgroundColor: CONNECTOR,
           pointerEvents: "none",
         }}
       />
 
-      {children.map((child) => (
+      {/* Per-child horizontal stubs, drawn absolutely at each card's centre y */}
+      {geom.stubsY.map((y, i) => (
+        <div
+          key={`vstub-${i}`}
+          style={{
+            position: "absolute",
+            left: parentCenterX,
+            top: y - 0.5,
+            width: STUB,
+            height: 1,
+            backgroundColor: CONNECTOR,
+            pointerEvents: "none",
+          }}
+        />
+      ))}
+
+      {children.map((child, i) => (
         <div
           key={child.id}
+          ref={(el) => {
+            rowRefs.current[i] = el;
+          }}
           style={{
             display: "flex",
             flexDirection: "row",
-            alignItems: "center",
+            alignItems: "flex-start",
           }}
         >
-          {/* Spacer up to the trunk x */}
-          <div style={{ width: parentCenterX, flexShrink: 0 }} />
-          {/* Horizontal stub from trunk to card */}
-          <div style={{ width: STUB, height: 1, backgroundColor: CONNECTOR, flexShrink: 0 }} />
+          {/* Spacer reserves the trunk + stub area on the left */}
+          <div style={{ width: parentCenterX + STUB, flexShrink: 0 }} />
           <OrgNodeComponent
             node={child}
             onToggleLayout={onToggleLayout}
@@ -441,6 +461,9 @@ function CardWithLaterals({
     sideMin: number;
     cardLeft: number;
     cardRight: number;
+    cardCenterX: number;
+    cardBottom: number;
+    spineExtension: number;
     leftBar: Bar | null;
     rightBar: Bar | null;
     leftConnectors: Conn[];
@@ -451,6 +474,9 @@ function CardWithLaterals({
     sideMin: 0,
     cardLeft: 0,
     cardRight: 0,
+    cardCenterX: 0,
+    cardBottom: 0,
+    spineExtension: 0,
     leftBar: null,
     rightBar: null,
     leftConnectors: [],
@@ -533,10 +559,22 @@ function CardWithLaterals({
       const leftBar = computeBar(leftConnectors);
       const rightBar = computeBar(rightConnectors);
 
+      // Wrapper height = max content height across the row. With
+      // alignItems:flex-start the card sits at top (cardTop ~ 0). Any
+      // extra space below cardBottom must be covered by an extension of
+      // the central spine so it visually meets the cascade stem rendered
+      // immediately after this wrapper.
+      const wrapperHeight = wRect.height;
+      const cardCenterX = (cardLeft + cardRight) / 2;
+      const spineExtension = Math.max(0, wrapperHeight - cardBottom);
+
       const next: Geom = {
         sideMin,
         cardLeft,
         cardRight,
+        cardCenterX,
+        cardBottom,
+        spineExtension,
         leftBar,
         rightBar,
         leftConnectors,
@@ -563,6 +601,9 @@ function CardWithLaterals({
         close(prev.sideMin, next.sideMin) &&
         close(prev.cardLeft, next.cardLeft) &&
         close(prev.cardRight, next.cardRight) &&
+        close(prev.cardCenterX, next.cardCenterX) &&
+        close(prev.cardBottom, next.cardBottom) &&
+        close(prev.spineExtension, next.spineExtension) &&
         sameBar(prev.leftBar, next.leftBar) &&
         sameBar(prev.rightBar, next.rightBar) &&
         sameConns(prev.leftConnectors, next.leftConnectors) &&
@@ -592,11 +633,29 @@ function CardWithLaterals({
         position: "relative",
         display: "flex",
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
         gap: GAP,
       }}
     >
+      {/* Central spine extension: from card bottom down to the wrapper
+          bottom, so the cascade stem rendered below joins continuously to
+          the root card even when lateral columns are taller than the card. */}
+      {geom.spineExtension > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            left: geom.cardCenterX - 0.5,
+            top: geom.cardBottom,
+            width: 1,
+            height: geom.spineExtension,
+            backgroundColor: CONNECTOR,
+            zIndex: 0,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {/* Vertical bars at card edges (behind the card) */}
       {geom.leftBar && geom.leftBar.height > 0 && leftLaterals.length > 0 && (
         <div
