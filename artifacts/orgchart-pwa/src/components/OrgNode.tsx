@@ -326,18 +326,19 @@ function VerticalGroup({
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const childRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  type Stub = { y: number; left: number };
   type Geom = {
     spacer: number;
     trunkX: number;
     trunkHeight: number;
-    stubsY: number[];
+    stubs: Stub[];
   };
 
   const [geom, setGeom] = useState<Geom>({
     spacer: parentCenterX + STUB,
     trunkX: parentCenterX,
     trunkHeight: 0,
-    stubsY: [],
+    stubs: [],
   });
 
   // Reset stale ref slots when the children count shrinks.
@@ -366,18 +367,25 @@ function VerticalGroup({
       const spacer = Math.max(parentCenterX + STUB, maxChildWidth + 2 * STUB);
       const trunkX = spacer - STUB;
 
-      const groupTop = el.getBoundingClientRect().top;
-      const stubsY = children.map((_, i) => {
+      const groupRect = el.getBoundingClientRect();
+      const groupTop = groupRect.top;
+      const groupLeft = groupRect.left;
+      const stubs: Stub[] = children.map((_, i) => {
         const row = rowRefs.current[i];
-        if (!row) return 0;
+        if (!row) return { y: 0, left: trunkX + STUB };
         // Measure the child's CARD (not the row, which may include the
-        // child's own descendants below the card).
+        // child's own descendants centred under the card). The card may
+        // be horizontally offset inside a wider subtree, so we need the
+        // card's own left edge to draw the stub all the way to it.
         const card = row.querySelector<HTMLElement>("[data-orgcard]");
         const target = card ?? row;
         const r = target.getBoundingClientRect();
-        return r.top + r.height / 2 - groupTop;
+        return {
+          y: r.top + r.height / 2 - groupTop,
+          left: r.left - groupLeft,
+        };
       });
-      const lastY = stubsY.length > 0 ? stubsY[stubsY.length - 1] : 0;
+      const lastY = stubs.length > 0 ? stubs[stubs.length - 1].y : 0;
 
       setGeom((prev) => {
         const close = (a: number, b: number) => Math.abs(a - b) < 0.5;
@@ -385,12 +393,12 @@ function VerticalGroup({
           close(prev.spacer, spacer) &&
           close(prev.trunkX, trunkX) &&
           close(prev.trunkHeight, lastY) &&
-          prev.stubsY.length === stubsY.length &&
-          prev.stubsY.every((y, i) => close(y, stubsY[i]))
+          prev.stubs.length === stubs.length &&
+          prev.stubs.every((s, i) => close(s.y, stubs[i].y) && close(s.left, stubs[i].left))
         ) {
           return prev;
         }
-        return { spacer, trunkX, trunkHeight: Math.max(0, lastY), stubsY };
+        return { spacer, trunkX, trunkHeight: Math.max(0, lastY), stubs };
       });
     };
     measure();
@@ -425,21 +433,27 @@ function VerticalGroup({
         }}
       />
 
-      {/* Per-child horizontal stubs, drawn absolutely at each card's centre y */}
-      {geom.stubsY.map((y, i) => (
-        <div
-          key={`vstub-${i}`}
-          style={{
-            position: "absolute",
-            left: geom.trunkX,
-            top: y - 0.5,
-            width: STUB,
-            height: 1,
-            backgroundColor: CONNECTOR,
-            pointerEvents: "none",
-          }}
-        />
-      ))}
+      {/* Per-child horizontal stubs: from trunkX to the actual left edge
+          of each child's CARD (not the subtree wrapper), at the card's
+          vertical centre. */}
+      {geom.stubs.map((s, i) => {
+        const w = Math.max(0, s.left - geom.trunkX);
+        if (w <= 0) return null;
+        return (
+          <div
+            key={`vstub-${i}`}
+            style={{
+              position: "absolute",
+              left: geom.trunkX,
+              top: s.y - 0.5,
+              width: w,
+              height: 1,
+              backgroundColor: CONNECTOR,
+              pointerEvents: "none",
+            }}
+          />
+        );
+      })}
 
       {children.map((child, i) => (
         <div
