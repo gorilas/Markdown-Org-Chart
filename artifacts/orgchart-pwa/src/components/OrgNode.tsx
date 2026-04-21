@@ -311,21 +311,64 @@ function VerticalGroup({
   children: OrgNodeType[];
   onToggleLayout: (id: string) => void;
   onSetPosition: (id: string, position: NodePosition) => void;
+  /**
+   * Hint of the parent card half-width. Used as the initial spacer width
+   * before child sizes are measured (avoids a visible flash on first
+   * render). The final spacer is computed from measurements so that the
+   * trunk stays exactly under the parent card centre regardless of how
+   * wide the children grow.
+   */
   parentCenterX: number;
 }) {
+  const STUB = 18;
+
   const groupRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [geom, setGeom] = useState<{ trunkHeight: number; stubsY: number[] }>({
+  const childRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  type Geom = {
+    spacer: number;
+    trunkX: number;
+    trunkHeight: number;
+    stubsY: number[];
+  };
+
+  const [geom, setGeom] = useState<Geom>({
+    spacer: parentCenterX + STUB,
+    trunkX: parentCenterX,
     trunkHeight: 0,
     stubsY: [],
   });
+
+  // Reset stale ref slots when the children count shrinks.
+  if (rowRefs.current.length > children.length) {
+    rowRefs.current.length = children.length;
+    childRefs.current.length = children.length;
+  }
 
   useLayoutEffect(() => {
     const el = groupRef.current;
     if (!el) return;
     const measure = () => {
+      // Max child subtree width. We size the spacer so that even the
+      // widest child sits to the right of the trunk + STUB. With the
+      // group centred under the parent column (alignItems:center in
+      // OrgNodeComponent), this places the trunk exactly under the
+      // parent card centre. See the long-form derivation in the comment
+      // above this component.
+      let maxChildWidth = 0;
+      for (let i = 0; i < children.length; i++) {
+        const child = childRefs.current[i];
+        if (!child) continue;
+        const w = child.getBoundingClientRect().width;
+        if (w > maxChildWidth) maxChildWidth = w;
+      }
+      const spacer = Math.max(parentCenterX + STUB, maxChildWidth + 2 * STUB);
+      const trunkX = spacer - STUB;
+
       const groupTop = el.getBoundingClientRect().top;
-      const stubsY = rowRefs.current.map((row) => {
+      const stubsY = children.map((_, i) => {
+        const row = rowRefs.current[i];
         if (!row) return 0;
         // Measure the child's CARD (not the row, which may include the
         // child's own descendants below the card).
@@ -335,16 +378,28 @@ function VerticalGroup({
         return r.top + r.height / 2 - groupTop;
       });
       const lastY = stubsY.length > 0 ? stubsY[stubsY.length - 1] : 0;
-      setGeom({ trunkHeight: Math.max(0, lastY), stubsY });
+
+      setGeom((prev) => {
+        const close = (a: number, b: number) => Math.abs(a - b) < 0.5;
+        if (
+          close(prev.spacer, spacer) &&
+          close(prev.trunkX, trunkX) &&
+          close(prev.trunkHeight, lastY) &&
+          prev.stubsY.length === stubsY.length &&
+          prev.stubsY.every((y, i) => close(y, stubsY[i]))
+        ) {
+          return prev;
+        }
+        return { spacer, trunkX, trunkHeight: Math.max(0, lastY), stubsY };
+      });
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     rowRefs.current.forEach((row) => row && ro.observe(row));
+    childRefs.current.forEach((c) => c && ro.observe(c));
     return () => ro.disconnect();
-  }, [children.length]);
-
-  const STUB = 18;
+  }, [children, parentCenterX]);
 
   return (
     <div
@@ -361,7 +416,7 @@ function VerticalGroup({
       <div
         style={{
           position: "absolute",
-          left: parentCenterX - 0.5,
+          left: geom.trunkX - 0.5,
           top: 0,
           width: 1,
           height: geom.trunkHeight,
@@ -376,7 +431,7 @@ function VerticalGroup({
           key={`vstub-${i}`}
           style={{
             position: "absolute",
-            left: parentCenterX,
+            left: geom.trunkX,
             top: y - 0.5,
             width: STUB,
             height: 1,
@@ -399,12 +454,18 @@ function VerticalGroup({
           }}
         >
           {/* Spacer reserves the trunk + stub area on the left */}
-          <div style={{ width: parentCenterX + STUB, flexShrink: 0 }} />
-          <OrgNodeComponent
-            node={child}
-            onToggleLayout={onToggleLayout}
-            onSetPosition={onSetPosition}
-          />
+          <div style={{ width: geom.spacer, flexShrink: 0 }} />
+          <div
+            ref={(el) => {
+              childRefs.current[i] = el;
+            }}
+          >
+            <OrgNodeComponent
+              node={child}
+              onToggleLayout={onToggleLayout}
+              onSetPosition={onSetPosition}
+            />
+          </div>
         </div>
       ))}
     </div>
