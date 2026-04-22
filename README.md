@@ -2,13 +2,18 @@
 
 Aplicación PWA para convertir Markdown estructurado en organigramas interactivos con el sistema de diseño DESY del Gobierno de Aragón.
 
-## Funcionalidades
+## Características
 
 - Conversión de Markdown a organigrama
 - Cambio de disposición horizontal/vertical por nodo
+- Importación de archivos `.md` y `.txt` desde el disco
 - Exportación a PDF en A4 apaisado
 - Zoom automático para ajustar el árbol al viewport
 - Sin backend
+
+## Archivos de ejemplo
+
+En la raíz del proyecto tienes `org_sin_nombres.md`, un archivo Markdown de ejemplo para probar la importación y ver cómo se construye el organigrama.
 
 ## Tecnologías
 
@@ -20,25 +25,30 @@ Aplicación PWA para convertir Markdown estructurado en organigramas interactivo
 ## Ejecutar en local
 
 ### Requisitos
+
 - Node.js
 - pnpm
 
 ### Instalar dependencias
+
 ```bash
 pnpm install
 ```
 
 ### Ejecutar la app
+
 ```bash
 pnpm --filter @workspace/orgchart-pwa run dev
 ```
 
 ### Compilar para producción
+
 ```bash
 pnpm --filter @workspace/orgchart-pwa run build
 ```
 
 ### Probar la versión de producción
+
 ```bash
 pnpm --filter @workspace/orgchart-pwa run serve
 ```
