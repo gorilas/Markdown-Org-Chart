@@ -34,13 +34,14 @@ function makeNodeId(path: string[]): string {
   return full.slice(0, 60) + "__" + hashStr(full);
 }
 
-function getStoredLayout(id: string): "horizontal" | "vertical" {
+function getStoredLayout(id: string, level: number = 0): "horizontal" | "vertical" {
   try {
     const stored = localStorage.getItem(`layout-${id}`);
     if (stored === "horizontal" || stored === "vertical") return stored;
   } catch {
   }
-  return "horizontal";
+  // Level-1 nodes (### headings) default to vertical; all others to horizontal.
+  return level === 1 ? "vertical" : "horizontal";
 }
 
 export function parseMarkdownToTree(markdown: string): OrgNode | null {
@@ -81,7 +82,7 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
     label: rootBlock.heading,
     subtitle: rootBlock.subtitle || undefined,
     level: 0,
-    layout: getStoredLayout(rootId),
+    layout: getStoredLayout(rootId, 0),
     children: [],
   };
 
@@ -91,14 +92,14 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
       id: h3Id,
       label: h3Block.heading,
       level: 1,
-      layout: getStoredLayout(h3Id),
+      layout: getStoredLayout(h3Id, 1),
       children: h3Block.items.map((item) => {
         const itemId = makeNodeId([rootBlock.heading, h3Block.heading, item]);
         return {
           id: itemId,
           label: item,
           level: 2,
-          layout: getStoredLayout(itemId),
+          layout: getStoredLayout(itemId, 2),
           children: [],
         };
       }),
@@ -113,7 +114,7 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
       id: blockId,
       label: block.heading,
       level: 1,
-      layout: getStoredLayout(blockId),
+      layout: getStoredLayout(blockId, 1),
       children: block.h3Blocks.flatMap((h3) => {
         if (h3.items.length === 0) {
           const h3Id = makeNodeId([rootBlock.heading, block.heading, h3.heading]);
@@ -121,7 +122,7 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
             id: h3Id,
             label: h3.heading,
             level: 2,
-            layout: getStoredLayout(h3Id),
+            layout: getStoredLayout(h3Id, 2),
             children: [],
           }];
         }
@@ -131,7 +132,7 @@ export function parseMarkdownToTree(markdown: string): OrgNode | null {
             id: itemId,
             label: item,
             level: 2,
-            layout: getStoredLayout(itemId),
+            layout: getStoredLayout(itemId, 2),
             children: [],
           };
         });
