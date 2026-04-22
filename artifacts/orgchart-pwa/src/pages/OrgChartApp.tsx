@@ -4,6 +4,7 @@ import { exportOrgChartToPdf } from "@/lib/pdfExport";
 import { OrgChart } from "@/components/OrgChart";
 import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { LLMPromptHelper } from "@/components/LLMPromptHelper";
+import { MarkdownSectionPickerModal } from "@/components/MarkdownSectionPickerModal";
 import { FileDown, ChevronLeft, ChevronRight, Info } from "lucide-react";
 
 const DEFAULT_MARKDOWN = `## Departamento de Presidencia, Economía y Justicia
@@ -89,12 +90,43 @@ María del Mar Vaquero Perianez
 
 ### Comisión Aragonesa de Derecho Civil`;
 
+interface MarkdownSection {
+  title: string;
+  content: string;
+}
+
+function extractSections(text: string): MarkdownSection[] {
+  const lines = text.split("\n");
+  const sections: MarkdownSection[] = [];
+  let currentTitle = "";
+  let currentLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.trimStart().startsWith("## ") && !line.trimStart().startsWith("### ")) {
+      if (currentTitle) {
+        sections.push({ title: currentTitle, content: currentLines.join("\n").trim() });
+      }
+      currentTitle = line.trimStart().slice(3).trim();
+      currentLines = [line];
+    } else {
+      currentLines.push(line);
+    }
+  }
+
+  if (currentTitle) {
+    sections.push({ title: currentTitle, content: currentLines.join("\n").trim() });
+  }
+
+  return sections;
+}
+
 export function OrgChartApp() {
   const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
   const [tree, setTree] = useState<OrgNode | null>(() => parseMarkdownToTree(DEFAULT_MARKDOWN));
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [pickerSections, setPickerSections] = useState<MarkdownSection[] | null>(null);
 
   const handleMarkdownChange = useCallback((val: string) => {
     setMarkdown(val);
@@ -114,6 +146,32 @@ export function OrgChartApp() {
       setExporting(false);
     }
   };
+
+  const handleImportFile = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text) return;
+
+      const sections = extractSections(text);
+
+      if (sections.length <= 1) {
+        handleMarkdownChange(text);
+      } else {
+        setPickerSections(sections);
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  }, [handleMarkdownChange]);
+
+  const handlePickerConfirm = useCallback((content: string) => {
+    handleMarkdownChange(content);
+    setPickerSections(null);
+  }, [handleMarkdownChange]);
+
+  const handlePickerCancel = useCallback(() => {
+    setPickerSections(null);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-desy-page font-desy">
@@ -154,6 +212,7 @@ export function OrgChartApp() {
             <p className="font-semibold text-white mb-1">Cómo usar esta herramienta:</p>
             <ul className="space-y-1 text-xs list-disc list-inside text-desy-muted">
               <li>Escribe o pega Markdown con niveles <code className="bg-desy-heading px-1 rounded">##</code> (organismo), <code className="bg-desy-heading px-1 rounded">###</code> (unidades) y <code className="bg-desy-heading px-1 rounded">-</code> (servicios)</li>
+              <li>Usa el botón <strong>Importar</strong> en el editor para cargar un archivo <code className="bg-desy-heading px-1 rounded">.md</code> desde tu ordenador</li>
               <li>Pasa el ratón sobre un nodo y pulsa el botón de layout para cambiar entre horizontal y vertical</li>
               <li>El layout de cada nodo se guarda automáticamente en el navegador</li>
               <li>Usa "Descargar PDF" para exportar el organigrama en A4 horizontal</li>
@@ -184,7 +243,11 @@ export function OrgChartApp() {
           {sidebarOpen && (
             <>
               <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                <MarkdownEditor value={markdown} onChange={handleMarkdownChange} />
+                <MarkdownEditor
+                  value={markdown}
+                  onChange={handleMarkdownChange}
+                  onImportFile={handleImportFile}
+                />
               </div>
               <LLMPromptHelper />
             </>
@@ -220,6 +283,15 @@ export function OrgChartApp() {
           )}
         </div>
       </div>
+
+      {/* Section picker modal */}
+      {pickerSections && (
+        <MarkdownSectionPickerModal
+          sections={pickerSections}
+          onConfirm={handlePickerConfirm}
+          onCancel={handlePickerCancel}
+        />
+      )}
     </div>
   );
 }
